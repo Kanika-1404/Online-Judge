@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+/* Add global dark mode background color */
+:root {
+  --bg-light: #e0d0f4;
+  --bg-dark: #1e2a47; /* dark blue */
+}
+
+body {
+  background-color: var(--bg-light);
+}
+
+.dark body {
+  background-color: var(--bg-dark);
+}
+
+/* Adjust Navbar theme toggle button colors for visibility */
+button {
+  transition: color 0.3s ease;
+}
+
+button:hover {
+  color: #a78bfa; /* light purple */
+}
+
+/* Ensure dark mode text colors for toggle button */
+.dark button {
+  color: #cbd5e1; /* light gray */
+}
