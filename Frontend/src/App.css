@@ -1,17 +1,23 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Add global dark mode background color */
 :root {
   --bg-light: #e0d0f4;
   --bg-dark: #1e2a47; /* dark blue */
+  --text-light: #1a202c; /* dark text for light mode */
+  --text-dark: #cbd5e1; /* light text for dark mode */
 }
 
 body {
   background-color: var(--bg-light);
+  color: var(--text-light);
 }
 
 .dark body {
   background-color: var(--bg-dark);
+  color: var(--text-dark);
 }
 
 /* Adjust Navbar theme toggle button colors for visibility */

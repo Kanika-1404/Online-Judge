@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import logo from '../assets/logo_hori.png';
 import useDarkMode from '../hooks/useDarkMode';
+import '../App.css'
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -8,7 +9,7 @@ export default function Navbar() {
   const [isDarkMode, toggleDarkMode] = useDarkMode();
 
   return (
-    <nav className="bg-[#2d2d5b] border-b border-gray-700">
+    <nav className="bg-[#2d2d5b] border-b border-gray-700 ">
       <div className="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
         {/* LOGO */}
         <a href="#" className="flex items-center space-x-3">
@@ -21,15 +22,35 @@ export default function Navbar() {
           <button
             onClick={toggleDarkMode}
             type="button"
-            className="relative z-50 text-gray-300 dark:text-gray-400"
+            aria-label="Toggle Dark Mode"
+            className="relative z-50 p-2 rounded-full bg-yellow-400 text-yellow-900 dark:bg-gray-700 dark:text-yellow-300 transition-colors duration-300"
           >
             {isDarkMode ? (
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M17.293 13.293a8 8 0 11-11.586-11.586 8 8 0 0011.586 11.586z" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 3v1m0 16v1m8.485-8.485h-1M4.515 12.515h-1m15.364 4.95l-.707-.707M6.343 6.343l-.707-.707m12.728 12.728l-.707-.707M6.343 17.657l-.707-.707M12 7a5 5 0 100 10 5 5 0 000-10z"
+                />
+                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth={2} fill="none" />
               </svg>
             ) : (
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 2a1 1 0 011 1v1a1 1 0 01-2 0V3a1 1 0 011-1zM4.222 4.222a1 1 0 011.414 0L6.343 5.93a1 1 0 01-1.415 1.415L4.222 5.637a1 1 0 010-1.415zM2 10a1 1 0 011-1h1a1 1 0 110 2H3a1 1 0 01-1-1zm8 8a1 1 0 011-1v-1a1 1 0 10-2 0v1a1 1 0 011 1zm5.778-1.778a1 1 0 00-1.414 0L13.657 14.07a1 1 0 001.415 1.415l1.414-1.415a1 1 0 000-1.414zM17 10a1 1 0 00-1-1h-1a1 1 0 100 2h1a1 1 0 001-1z" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                stroke="currentColor"
+                strokeWidth={1}
+              >
+                <path d="M17.293 13.293a8 8 0 11-11.586-11.586 8 8 0 0011.586 11.586z" />
               </svg>
             )}
           </button>
