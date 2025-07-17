@@ -1,20 +1,20 @@
-import './App.css'
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Register from './pages/Register';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Question from './pages/Question';
 
 function App() {
-
   return (
-    <>
-      <div className=" min-h-screen flex flex-col">
-        <Navbar />
-        <div className="flex-grow p-4">
-          <h1 className="text-2xl font-bold">Hello Online Judge!</h1>
-        </div>
-        <Footer />
-      </div>
-    </>
-  )
+    <Router>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/question/:id" element={<Question />} />
+      </Routes>
+    </Router>
+  );
 }
 
-export default App
+export default App;
