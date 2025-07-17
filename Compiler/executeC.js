@@ -9,7 +9,7 @@ if (!fs.existsSync(outputPath)) {
 
 const os = require("os");
 
-const executeCpp = async (filePath) => {
+const executeC = async (filePath) => {
   const jobID = path.basename(filePath).split(".")[0];
   let outputFilePath = path.join(outputPath, `${jobID}.out`);
   const isWindows = os.platform() === "win32";
@@ -19,7 +19,7 @@ const executeCpp = async (filePath) => {
   }
 
   return new Promise((resolve, reject) => {
-    const compileCommand = `g++ "${filePath}" -o "${outputFilePath}"`;
+    const compileCommand = `gcc "${filePath}" -o "${outputFilePath}"`;
     const runCommand = isWindows ? `"${outputFilePath}"` : `./"${outputFilePath}"`;
     const command = `${compileCommand} && ${runCommand}`;
 
@@ -36,4 +36,4 @@ const executeCpp = async (filePath) => {
 };
 
 
-module.exports = executeCpp;
+module.exports = executeC;

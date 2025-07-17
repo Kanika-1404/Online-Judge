@@ -15,8 +15,46 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 
+const { generateFile } = require("../Compiler/generateFile");
+const executeCpp = require("../Compiler/executeCpp");
+const executeC = require("../Compiler/executeC");
+const executePy = require("../Compiler/executePy");
+
 app.get("/", (req, res) => {
     res.send("Hello, World!");
+});
+
+// New API endpoint to run code
+app.post("/run-code", async (req, res) => {
+    try {
+        const { code, format } = req.body;
+        if (!code || !format) {
+            return res.status(400).json({ error: "Code and format are required" });
+        }
+        // Generate file
+        const filePath = generateFile(format, code);
+        // Execute file based on format
+        let output;
+        if (format === "cpp") {
+            output = await executeCpp(filePath);
+        } else if (format === "c") {
+            output = await executeC(filePath);
+        } else if (format === "py") {
+            output = await executePy(filePath);
+        } else {
+            return res.status(400).json({ error: `Language ${format} is not supported yet.` });
+        }
+        console.log({output});
+        res.json({ output });
+    } catch (error) {
+        if (error.stderr) {
+            res.status(500).json({ error: error.stderr });
+        } else if (error.error) {
+            res.status(500).json({ error: error.error.message });
+        } else {
+            res.status(500).json({ error: "Unknown error occurred" });
+        }
+    }
 });
 
 const { v4: uuidv4 } = require('uuid');

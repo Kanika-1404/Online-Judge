@@ -9,10 +9,12 @@ if (!fs.existsSync(dirCodes)){  // if folder not exist make it
 }
 const generateFile = (Format, content) => {
     const fileID = uuid();
-    const filename = `${fileID}.${format}`;
+    const filename = `${fileID}.${Format}`;
     const filePath = path.join(dirCodes, filename);
     fs.writeFileSync(filePath, content);
     return filePath;
 };
+
+generateFile("py", "print(\"Hello World\")"); // generate a cpp
 
 module.exports = {generateFile};
