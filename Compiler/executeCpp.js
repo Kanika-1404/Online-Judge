@@ -1,4 +1,4 @@
-const { exec } = require("child_process");
+const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
@@ -9,7 +9,7 @@ if (!fs.existsSync(outputPath)) {
 
 const os = require("os");
 
-const executeCpp = async (filePath) => {
+const executeCpp = async (filePath, input = "") => {
   const jobID = path.basename(filePath).split(".")[0];
   let outputFilePath = path.join(outputPath, `${jobID}.out`);
   const isWindows = os.platform() === "win32";
@@ -20,20 +20,53 @@ const executeCpp = async (filePath) => {
 
   return new Promise((resolve, reject) => {
     const compileCommand = `g++ "${filePath}" -o "${outputFilePath}"`;
-    const runCommand = isWindows ? `"${outputFilePath}"` : `./"${outputFilePath}"`;
-    const command = `${compileCommand} && ${runCommand}`;
+    const compile = spawn(compileCommand, { shell: true });
 
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        reject({ error, stderr });
-      } else if (stderr) {
-        reject(stderr);
-      } else {
-        resolve(stdout);
+    compile.on("close", (code) => {
+      if (code !== 0) {
+        reject(`Compilation failed with exit code ${code}`);
+        return;
       }
+
+      const run = spawn(isWindows ? outputFilePath : `./${outputFilePath}`, [], { shell: true });
+
+      let stdout = "";
+      let stderr = "";
+
+      run.stdout.on("data", (data) => {
+        stdout += data.toString();
+      });
+
+      run.stderr.on("data", (data) => {
+        stderr += data.toString();
+      });
+
+      run.on("error", (err) => {
+        reject(err);
+      });
+
+      run.on("close", (code) => {
+        if (code !== 0) {
+          reject(stderr || `Execution failed with exit code ${code}`);
+        } else {
+          resolve(stdout);
+        }
+      });
+
+      if (input) {
+        run.stdin.write(input);
+      }
+      run.stdin.end();
+    });
+
+    compile.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    compile.on("error", (err) => {
+      reject(err);
     });
   });
 };
-
 
 module.exports = executeCpp;
