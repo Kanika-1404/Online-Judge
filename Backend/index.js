@@ -576,6 +576,37 @@ app.delete("/contests/:id", authenticateToken, async (req, res) => {
   }
 });
 
+// Register for contest
+app.post("/contests/:id/register", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    
+    const contest = await Contest.findById(id);
+    if (!contest) {
+      return res.status(404).json({ error: 'Contest not found' });
+    }
+    
+    // Check if user already registered
+    if (contest.registeredUsers.includes(userId)) {
+      return res.status(400).json({ error: 'Already registered for this contest' });
+    }
+    
+    // Add user to registered users
+    contest.registeredUsers.push(userId);
+    await contest.save();
+    
+    res.json({ 
+      message: 'Successfully registered for contest',
+      contestId: id,
+      userId: userId
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
 app.post("/submit-code", authenticateToken, async (req, res) => {
   try {
     const { code, format, questionId } = req.body;
@@ -908,6 +939,19 @@ app.get("/api/question/accuracy/:questionId", async (req, res) => {
   } catch (error) {
     console.error("Error calculating question accuracy:", error);
     res.status(500).json({ error: "Server error calculating question accuracy" });
+  }
+});
+
+// Get user profile endpoint
+app.get("/api/user/profile", authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.json({ user });
+  } catch (error) {
+    res.status(500).json({ error: "Server error fetching user profile" });
   }
 });
 

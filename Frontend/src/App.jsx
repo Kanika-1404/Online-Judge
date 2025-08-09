@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Question from './pages/Question';
 import UserDashboard from './pages/UserDashboard';
 import Contests from './pages/Contests';
+import ContestDetail from './pages/ContestDetail';
 
 import AdminNavbar from './components/AdminNavbar';
 import QuestionsManagement from './pages/admin/QuestionsManagement';
@@ -27,6 +28,7 @@ function App() {
         <Route path="/user-dashboard" element={<UserDashboard />} />
         <Route path="/question/:id" element={<Question />} />
         <Route path="/contests" element={<Contests />} />
+        <Route path="/contest/:id" element={<ContestDetail />} />
 
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
 
