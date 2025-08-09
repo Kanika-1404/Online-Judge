@@ -8,6 +8,7 @@ dbConnection();
 const User = require("./models/User");
 const Question = require("./models/Question");
 const Submission = require("./models/Submission");
+const Contest = require("./models/Contest");
 
 const bcrypt = require("bcryptjs")
 const jwt = require('jsonwebtoken');
@@ -20,6 +21,7 @@ const { generateFile } = require("../Compiler/generateFile");
 const executeCpp = require("../Compiler/executeCpp");
 const executeC = require("../Compiler/executeC");
 const executePy = require("../Compiler/executePy");
+const { generateReview } = require("./Ai-review.js");
 
 app.get("/", (req, res) => {
     res.send("Hello, World!");
@@ -58,6 +60,20 @@ app.post("/run-code", async (req, res) => {
     }
 });
 
+// New API endpoint to generate AI review
+app.post("/generate-review", async (req, res) => {
+    try {
+        const { question, code } = req.body;
+        if (!question || !code) {
+            return res.status(400).json({ error: "Question and code are required" });
+        }
+        const review = await generateReview(question, code);
+        res.json({ review });
+    } catch (error) {
+        res.status(500).json({ error: "Error generating AI review" });
+    }
+});
+
 const { v4: uuidv4 } = require('uuid');
 
 app.post("/register", async(req, res) => {
@@ -85,6 +101,155 @@ app.post("/register", async(req, res) => {
     res.status(200).json({message: "You have successfully registered.", user});
 });
 
+// New API endpoint for admin registration
+// GET route to serve admin registration form
+app.get("/register-admin", (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Admin Registration</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    max-width: 500px;
+                    margin: 50px auto;
+                    padding: 20px;
+                    background-color: #f5f5f5;
+                }
+                .container {
+                    background: white;
+                    padding: 30px;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                }
+                h1 {
+                    color: #333;
+                    text-align: center;
+                    margin-bottom: 30px;
+                }
+                .form-group {
+                    margin-bottom: 20px;
+                }
+                label {
+                    display: block;
+                    margin-bottom: 5px;
+                    font-weight: bold;
+                    color: #555;
+                }
+                input[type="text"],
+                input[type="email"],
+                input[type="password"] {
+                    width: 100%;
+                    padding: 10px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    box-sizing: border-box;
+                }
+                button {
+                    width: 100%;
+                    padding: 12px;
+                    background-color: #007bff;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 16px;
+                }
+                button:hover {
+                    background-color: #0056b3;
+                }
+                .error {
+                    color: red;
+                    margin-top: 10px;
+                }
+                .success {
+                    color: green;
+                    margin-top: 10px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Admin Registration</h1>
+                <form id="adminForm" method="POST" action="/register-admin">
+                    <div class="form-group">
+                        <label for="name">Full Name:</label>
+                        <input type="text" id="name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <button type="submit">Register as Admin</button>
+                </form>
+                <div id="message" class="message"></div>
+            </div>
+            <script>
+                document.getElementById('adminForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.target);
+                    const data = Object.fromEntries(formData);
+                    
+                    try {
+                        const response = await fetch('/register-admin', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(data)
+                        });
+                        const result = await response.json();
+                        
+                        if (response.ok) {
+                            document.getElementById('message').innerHTML = '<p class="success">' + result.message + '</p>';
+                            e.target.reset();
+                        } else {
+                            document.getElementById('message').innerHTML = '<p class="error">' + (result.error || 'Registration failed') + '</p>';
+                        }
+                    } catch (error) {
+                        document.getElementById('message').innerHTML = '<p class="error">Network error. Please try again.</p>';
+                    }
+                });
+            </script>
+        </body>
+        </html>
+    `);
+});
+
+// POST route for admin registration (existing)
+app.post("/register-admin", async(req, res) => {
+    const { name, email, password } = req.body;
+    if (!(name && email && password)){
+        return res.status(400).send("Please fill all info.");
+    }
+    // check if user already exist
+    const existingUser = await User.findOne({ email });
+    if (existingUser){
+        return res.status(400).send("User already exist with this email.");
+    }
+    // hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    // Save admin user in DB with role 'admin'
+    const user = await User.create({
+        userId: uuidv4(),
+        fullName: name,
+        email,
+        password: hashedPassword,
+        role: 'admin'
+    });
+    // generate token
+    const token = jwt.sign({id: user._id, email}, process.env.JWT_SECRET || 'defaultsecret');
+    user.password = undefined;
+    res.status(200).json({message: "Admin registered successfully.", user});
+});
+
 app.post("/login", async (req, res) => {
     const { email, password } = req.body;
     if (!(email && password)) {
@@ -99,9 +264,19 @@ app.post("/login", async (req, res) => {
         if (!isPasswordValid) {
             return res.status(400).send("Invalid email or password.");
         }
-        const token = jwt.sign({ id: user._id, email }, process.env.JWT_SECRET || 'defaultsecret');
+        
+        // Include role information in response
+        const token = jwt.sign({ id: user._id, email, role: user.role }, process.env.JWT_SECRET || 'defaultsecret');
         user.password = undefined;
-        res.status(200).json({ message: "Login successful.", user, token });
+        
+        // Return role information for redirection
+        res.status(200).json({ 
+            message: "Login successful.", 
+            user, 
+            token, 
+            role: user.role,
+            redirectUrl: user.role === 'admin' ? '/admin-dashboard' : '/dashboard'
+        });
     } catch (error) {
         res.status(500).send("Server error.");
     }
@@ -129,6 +304,151 @@ app.get("/questions/:id", async (req, res) => {
   }
 });
 
+// Update question - admin only
+app.put("/questions/:id", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: "Access denied. Admins only." });
+    }
+
+    const { title, description, tags, difficulty, testCases } = req.body;
+    
+    // Detailed validation
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      return res.status(400).json({ error: "Title is required and must be a non-empty string." });
+    }
+    
+    if (!description || typeof description !== 'string' || description.trim().length === 0) {
+      return res.status(400).json({ error: "Description is required and must be a non-empty string." });
+    }
+    
+    if (!difficulty || !['Easy', 'Medium', 'Hard'].includes(difficulty)) {
+      return res.status(400).json({ error: "Difficulty must be one of: Easy, Medium, Hard." });
+    }
+    
+    if (!Array.isArray(testCases) || testCases.length === 0) {
+      return res.status(400).json({ error: "At least one test case is required." });
+    }
+    
+    // Validate test cases structure
+    for (let i = 0; i < testCases.length; i++) {
+      const tc = testCases[i];
+      if (!tc || typeof tc !== 'object') {
+        return res.status(400).json({ error: `Test case ${i + 1} must be an object.` });
+      }
+      if (!tc.input || typeof tc.input !== 'string') {
+        return res.status(400).json({ error: `Test case ${i + 1} input is required and must be a string.` });
+      }
+      if (!tc.output || typeof tc.output !== 'string') {
+        return res.status(400).json({ error: `Test case ${i + 1} output is required and must be a string.` });
+      }
+      if (tc.visibility && !['Public', 'Private'].includes(tc.visibility)) {
+        return res.status(400).json({ error: `Test case ${i + 1} visibility must be Public or Private.` });
+      }
+    }
+
+    const question = await Question.findById(req.params.id);
+    if (!question) {
+      return res.status(404).json({ error: "Question not found." });
+    }
+
+    question.title = title.trim();
+    question.description = description.trim();
+    question.tags = Array.isArray(tags) ? tags.map(tag => tag.trim()).filter(tag => tag) : [];
+    question.difficulty = difficulty;
+    question.testCases = testCases.map(tc => ({
+      input: tc.input.trim(),
+      output: tc.output.trim(),
+      visibility: tc.visibility || 'Private'
+    }));
+
+    await question.save();
+    res.status(200).json({ 
+      message: "Question updated successfully.", 
+      question: {
+        _id: question._id,
+        title: question.title,
+        description: question.description,
+        tags: question.tags,
+        difficulty: question.difficulty,
+        testCases: question.testCases
+      }
+    });
+  } catch (error) {
+    console.error("Error updating question:", error);
+    
+    // Handle specific MongoDB errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ error: "Validation failed", details: validationErrors });
+    }
+    
+    if (error.name === 'CastError') {
+      return res.status(400).json({ error: "Invalid question ID format." });
+    }
+    
+    res.status(500).json({ 
+      error: "Server error updating question.", 
+      details: process.env.NODE_ENV === 'development' ? error.message : "Internal server error"
+    });
+  }
+});
+
+// Delete question - admin only
+app.delete("/questions/:id", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: "Access denied. Admins only." });
+    }
+
+    const question = await Question.findById(req.params.id);
+    if (!question) {
+      return res.status(404).json({ error: "Question not found." });
+    }
+
+    await question.remove();
+    res.status(200).json({ message: "Question deleted successfully." });
+  } catch (error) {
+    res.status(500).json({ error: "Server error deleting question." });
+  }
+});
+
+// New API endpoint to create a question - only accessible by admin role
+app.post("/questions", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    // Fetch user to check role
+    const user = await User.findById(userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: "Access denied. Admins only." });
+    }
+
+    const { title, description, tags, difficulty, testCases } = req.body;
+    if (!title || !description || !difficulty || !testCases) {
+      return res.status(400).json({ error: "Missing required fields." });
+    }
+
+    // Create new question
+    const question = new Question({
+      title,
+      description,
+      tags,
+      difficulty,
+      testCases,
+      createdBy: userId
+    });
+
+    await question.save();
+    res.status(201).json({ message: "Question created successfully.", question });
+  } catch (error) {
+    res.status(500).json({ error: "Server error creating question." });
+  }
+});
+
 
 // Middleware to authenticate and extract userId from JWT token
 function authenticateToken(req, res, next) {
@@ -142,6 +462,119 @@ function authenticateToken(req, res, next) {
     next();
   });
 }
+
+// Contest routes
+
+// Get all contests
+app.get("/contests", async (req, res) => {
+  try {
+    const contests = await Contest.find()
+      .populate('questions', 'title difficulty')
+      .populate('registeredUsers', 'fullName email');
+    res.status(200).json(contests);
+  } catch (error) {
+    res.status(500).json({ error: "Error fetching contests." });
+  }
+});
+
+// Get contest by id
+app.get("/contests/:id", async (req, res) => {
+  try {
+    const contest = await Contest.findById(req.params.id)
+      .populate('questions', 'title difficulty')
+      .populate('registeredUsers', 'fullName email');
+    if (!contest) {
+      return res.status(404).json({ error: "Contest not found." });
+    }
+    res.status(200).json(contest);
+  } catch (error) {
+    res.status(500).json({ error: "Error fetching contest." });
+  }
+});
+
+// Create contest - admin only
+app.post("/contests", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: "Access denied. Admins only." });
+    }
+
+    const { contestId, name, description, startTime, endTime, questions } = req.body;
+    if (!contestId || !name || !description || !startTime || !endTime) {
+      return res.status(400).json({ error: "Missing required fields." });
+    }
+
+    const contest = new Contest({
+      contestId,
+      name,
+      description,
+      startTime,
+      endTime,
+      questions,
+      registeredUsers: []
+    });
+
+    await contest.save();
+    res.status(201).json({ message: "Contest created successfully.", contest });
+  } catch (error) {
+    res.status(500).json({ error: "Server error creating contest." });
+  }
+});
+
+// Update contest - admin only
+app.put("/contests/:id", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: "Access denied. Admins only." });
+    }
+
+    const { name, description, startTime, endTime, questions } = req.body;
+    if (!name || !description || !startTime || !endTime) {
+      return res.status(400).json({ error: "Missing required fields." });
+    }
+
+    const contest = await Contest.findById(req.params.id);
+    if (!contest) {
+      return res.status(404).json({ error: "Contest not found." });
+    }
+
+    contest.name = name;
+    contest.description = description;
+    contest.startTime = startTime;
+    contest.endTime = endTime;
+    contest.questions = questions;
+
+    await contest.save();
+    res.status(200).json({ message: "Contest updated successfully.", contest });
+  } catch (error) {
+    res.status(500).json({ error: "Server error updating contest." });
+  }
+});
+
+// Delete contest - admin only
+app.delete("/contests/:id", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: "Access denied. Admins only." });
+    }
+
+    const contest = await Contest.findById(req.params.id);
+    if (!contest) {
+      return res.status(404).json({ error: "Contest not found." });
+    }
+
+    await contest.remove();
+    res.status(200).json({ message: "Contest deleted successfully." });
+  } catch (error) {
+    res.status(500).json({ error: "Server error deleting contest." });
+  }
+});
 
 app.post("/submit-code", authenticateToken, async (req, res) => {
   try {
@@ -232,6 +665,249 @@ app.get("/submissions/:questionId", authenticateToken, async (req, res) => {
     res.json({ submissions });
   } catch (error) {
     res.status(500).json({ error: "Server error fetching submissions" });
+  }
+});
+
+// New endpoint to get dashboard statistics - admin only
+app.get("/dashboard-stats", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    
+    // For regular users, return their personal stats
+    if (!user || user.role !== 'admin') {
+      // Get user-specific stats
+      const userSubmissions = await Submission.find({ userId });
+      const uniqueQuestionsSolved = [...new Set(userSubmissions.map(sub => sub.questionId.toString()))].length;
+      
+      // For now, return simplified stats for regular users
+      const totalQuestions = await Question.countDocuments();
+      const totalContests = await Contest.countDocuments();
+      
+      res.json({
+        totalQuestions,
+        totalContests,
+        totalSubmissions: userSubmissions.length,
+        questionsSolved: uniqueQuestionsSolved,
+        rank: Math.floor(Math.random() * 1000) + 1 // Placeholder rank
+      });
+      return;
+    }
+
+    // Admin stats
+    const [
+      totalQuestions,
+      totalContests,
+      totalUsers,
+      totalSubmissions
+    ] = await Promise.all([
+      Question.countDocuments(),
+      Contest.countDocuments(),
+      User.countDocuments(),
+      Submission.countDocuments()
+    ]);
+
+    const recentQuestions = await Question.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('title difficulty');
+
+    const recentContests = await Contest.find()
+      .sort({ startTime: -1 })
+      .limit(5)
+      .select('name startTime');
+
+    res.json({
+      stats: {
+        totalQuestions,
+        totalContests,
+        totalUsers,
+        totalSubmissions
+      },
+      recentQuestions,
+      recentContests
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Server error fetching dashboard stats" });
+  }
+});
+
+// New endpoint to get user accuracy statistics
+app.get("/api/user/accuracy/:userId?", authenticateToken, async (req, res) => {
+  try {
+    const requestingUserId = req.user.id;
+    const targetUserId = req.params.userId || requestingUserId;
+    
+    // Check if user is requesting their own data or is admin
+    const requestingUser = await User.findById(requestingUserId);
+    if (!requestingUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    if (targetUserId !== requestingUserId && requestingUser.role !== 'admin') {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const submissions = await Submission.find({ userId: targetUserId })
+      .populate('questionId', 'title difficulty')
+      .sort({ timeSubmitted: -1 });
+
+    if (!submissions || submissions.length === 0) {
+      return res.json({
+        overallAccuracy: 0,
+        totalSubmissions: 0,
+        acceptedSubmissions: 0,
+        rejectedSubmissions: 0,
+        pendingSubmissions: 0,
+        questionAccuracy: [],
+        recentSubmissions: []
+      });
+    }
+
+    // Calculate overall accuracy
+    const totalSubmissions = submissions.length;
+    const acceptedSubmissions = submissions.filter(
+      sub => sub.verdict === 'Accepted'
+    ).length;
+    const rejectedSubmissions = submissions.filter(
+      sub => sub.verdict === 'Wrong Answer' || sub.verdict === 'Rejected'
+    ).length;
+    const pendingSubmissions = submissions.filter(
+      sub => !sub.verdict || sub.verdict === 'Pending'
+    ).length;
+
+    const overallAccuracy = totalSubmissions > 0 
+      ? Math.round((acceptedSubmissions / totalSubmissions) * 100) 
+      : 0;
+
+    // Calculate accuracy per question
+    const questionAccuracyMap = {};
+    submissions.forEach(submission => {
+      if (!submission.questionId || !submission.questionId._id) {
+        // Skip submissions with null questionId to avoid errors
+        return;
+      }
+      const questionId = submission.questionId._id.toString();
+      if (!questionAccuracyMap[questionId]) {
+        questionAccuracyMap[questionId] = {
+          questionId,
+          title: submission.questionId.title || 'Unknown Question',
+          difficulty: submission.questionId.difficulty || 'Unknown',
+          submissions: [],
+          accepted: 0,
+          total: 0
+        };
+      }
+      
+      questionAccuracyMap[questionId].submissions.push(submission);
+      questionAccuracyMap[questionId].total++;
+      if (submission.verdict === 'Accepted') {
+        questionAccuracyMap[questionId].accepted++;
+      }
+    });
+
+    const questionAccuracy = Object.values(questionAccuracyMap).map(q => ({
+      questionId: q.questionId,
+      title: q.title,
+      difficulty: q.difficulty,
+      accuracy: q.total > 0 ? Math.round((q.accepted / q.total) * 100) : 0,
+      totalAttempts: q.total,
+      successfulAttempts: q.accepted,
+      averageScore: q.submissions.reduce((sum, sub) => sum + (sub.score || 0), 0) / q.total
+    }));
+
+    // Get recent submissions (last 10)
+    const recentSubmissions = submissions.slice(0, 10).map(sub => ({
+      _id: sub._id,
+      questionId: sub.questionId && sub.questionId._id ? sub.questionId._id : null,
+      questionTitle: sub.questionId && sub.questionId.title ? sub.questionId.title : 'Unknown Question',
+      verdict: sub.verdict,
+      score: sub.score,
+      language: sub.language,
+      timeSubmitted: sub.timeSubmitted
+    })).filter(sub => sub.questionId !== null);
+
+    res.json({
+      overallAccuracy,
+      totalSubmissions,
+      acceptedSubmissions,
+      rejectedSubmissions,
+      pendingSubmissions,
+      questionAccuracy,
+      recentSubmissions
+    });
+  } catch (error) {
+    console.error("Error calculating accuracy:", error);
+    res.status(500).json({ error: "Server error calculating accuracy" });
+  }
+});
+
+// New endpoint to get question-specific accuracy
+app.get("/api/question/accuracy/:questionId", async (req, res) => {
+  try {
+    const { questionId } = req.params;
+    
+    // Validate question exists
+    const question = await Question.findById(questionId);
+    if (!question) {
+      return res.status(404).json({ error: "Question not found" });
+    }
+
+    const submissions = await Submission.find({ questionId })
+      .populate('userId', 'fullName')
+      .sort({ timeSubmitted: -1 });
+
+    if (!submissions || submissions.length === 0) {
+      return res.json({
+        questionId,
+        title: question.title,
+        accuracy: 0,
+        totalAttempts: 0,
+        successfulAttempts: 0,
+        averageScore: 0,
+        submissions: []
+      });
+    }
+
+    const totalAttempts = submissions.length;
+    const successfulAttempts = submissions.filter(
+      sub => sub.verdict === 'Accepted'
+    ).length;
+    
+    const totalScore = submissions.reduce(
+      (sum, sub) => sum + (sub.score || 0), 0
+    );
+    const averageScore = totalAttempts > 0 
+      ? Math.round(totalScore / totalAttempts) 
+      : 0;
+
+    const accuracy = totalAttempts > 0 
+      ? Math.round((successfulAttempts / totalAttempts) * 100) 
+      : 0;
+
+    // Get unique users who attempted this question
+    const uniqueUsers = [...new Set(submissions.map(sub => sub.userId && sub.userId._id ? sub.userId._id.toString() : null).filter(id => id !== null))].length;
+
+    res.json({
+      questionId,
+      title: question.title,
+      accuracy,
+      totalAttempts,
+      successfulAttempts,
+      averageScore,
+      uniqueUsers,
+      submissions: submissions.slice(0, 10).map(sub => ({
+        userId: sub.userId && sub.userId._id ? sub.userId._id : null,
+        userName: sub.userId && sub.userId.fullName ? sub.userId.fullName : 'Unknown User',
+        verdict: sub.verdict,
+        score: sub.score,
+        language: sub.language,
+        timeSubmitted: sub.timeSubmitted
+      })).filter(sub => sub.userId !== null)
+    });
+  } catch (error) {
+    console.error("Error calculating question accuracy:", error);
+    res.status(500).json({ error: "Server error calculating question accuracy" });
   }
 });
 

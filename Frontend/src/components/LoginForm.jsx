@@ -33,20 +33,25 @@ export default function LoginForm() {
         })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setMessage(data.message || "Login successful");
-        setFormData({
-          email: '',
-          password: ''
-        });
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        navigate('/dashboard');
-      } else {
-        const errorData = await response.text();
-        setError(errorData || "Login failed");
-      }
+        if (response.ok) {
+          const data = await response.json();
+          setMessage(data.message || "Login successful");
+          setFormData({
+            email: '',
+            password: ''
+          });
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          // Redirect based on role
+          if (data.role === 'admin') {
+            navigate('/admin-dashboard');
+          } else {
+            navigate('/user-dashboard');
+          }
+        } else {
+          const errorData = await response.text();
+          setError(errorData || "Login failed");
+        }
     } catch (err) {
       setError("Error connecting to server");
     }

@@ -32,7 +32,12 @@ const QuestionSchema = new mongoose.Schema({
       enum: ['Public', 'Private'],
       default: 'Private',
     }
-  }]
+  }],
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model("Question", QuestionSchema);

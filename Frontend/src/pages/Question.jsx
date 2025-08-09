@@ -1,24 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import Navbar from '../components/Navbar';
+import UserNavbar from '../components/UserNavbar';
 import Footer from '../components/Footer';
-
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs/components/prism-core';
 import 'prismjs/components/prism-clike';
 import 'prismjs/components/prism-javascript';
-import 'prismjs/themes/prism.css'; // You can import a different theme or create your own
+import 'prismjs/themes/prism.css';
+import AccuracyDisplay from '../components/AccuracyDisplay';
 
 function Question() {
   const { id } = useParams();
   const [question, setQuestion] = useState(null);
   const [code, setCode] = useState('');
   const [output, setOutput] = useState('');
-  const [language, setLanguage] = useState('py'); // default to Python
+  const [language, setLanguage] = useState('py');
   const [customInput, setCustomInput] = useState('');
   const [verdict, setVerdict] = useState(null);
   const [testResults, setTestResults] = useState([]);
   const [showTestCases, setShowTestCases] = useState(false);
+  const [aiReview, setAiReview] = useState('');
+  const [aiReviewLoading, setAiReviewLoading] = useState(false);
+  const [questionAccuracy, setQuestionAccuracy] = useState(null);
+  const [loadingAccuracy, setLoadingAccuracy] = useState(false);
 
   const languageOptions = [
     { label: 'C++', value: 'cpp' },
@@ -30,29 +34,30 @@ function Question() {
     setLanguage(e.target.value);
   };
 
-  useEffect(() => {
-    async function fetchQuestion() {
-      try {
-        const response = await fetch(`http://localhost:5000/questions/${id}`);
-        if (response.ok) {
-          const data = await response.json();
-          setQuestion(data);
-        } else {
-          console.error('Failed to fetch question');
-        }
-      } catch (error) {
-        console.error('Error fetching question:', error);
-      }
+  const getAIReview = async () => {
+    if (!question || !code) {
+      setAiReview('Question or code is missing.');
+      return;
     }
-    fetchQuestion();
-  }, [id]);
-
-  const handleCodeChange = (code) => {
-    setCode(code);
-  };
-
-  const handleCustomInputChange = (e) => {
-    setCustomInput(e.target.value);
+    setAiReviewLoading(true);
+    setAiReview('');
+    try {
+      const response = await fetch('http://localhost:5000/generate-review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: question.title, code }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setAiReview(data.review);
+      } else {
+        setAiReview(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      setAiReview(`Error: ${error.message}`);
+    } finally {
+      setAiReviewLoading(false);
+    }
   };
 
   const runCode = async () => {
@@ -62,9 +67,7 @@ function Question() {
     try {
       const response = await fetch("http://localhost:5000/run-code", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, format: language, input: customInput }),
       });
       const data = await response.json();
@@ -76,6 +79,7 @@ function Question() {
     } catch (error) {
       setOutput(`Error: ${error.message}`);
     }
+    await getAIReview();
   };
 
   const submitCode = async () => {
@@ -84,7 +88,7 @@ function Question() {
     setTestResults([]);
     try {
       const token = localStorage.getItem('token');
-      const userId = localStorage.getItem('userId'); // Assuming userId is stored in localStorage on login
+      const userId = localStorage.getItem('userId');
       const response = await fetch("http://localhost:5000/submit-code", {
         method: "POST",
         headers: {
@@ -97,12 +101,56 @@ function Question() {
       if (response.ok) {
         setVerdict(data.verdict);
         setTestResults(data.results);
+        setOutput(data.verdict === "Accepted" ? "Accepted" : "Rejected");
       } else {
         setOutput(`Error: ${data.error}`);
       }
     } catch (error) {
       setOutput(`Error: ${error.message}`);
     }
+    await getAIReview();
+  };
+
+  useEffect(() => {
+    async function fetchQuestion() {
+      try {
+        const response = await fetch(`http://localhost:5000/questions/${id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setQuestion(data);
+          fetchQuestionAccuracy();
+        } else {
+          console.error('Failed to fetch question');
+        }
+      } catch (error) {
+        console.error('Error fetching question:', error);
+      }
+    }
+
+    async function fetchQuestionAccuracy() {
+      setLoadingAccuracy(true);
+      try {
+        const response = await fetch(`http://localhost:5000/api/question/accuracy/${id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setQuestionAccuracy(data);
+        }
+      } catch (error) {
+        console.error('Error fetching question accuracy:', error);
+      } finally {
+        setLoadingAccuracy(false);
+      }
+    }
+
+    fetchQuestion();
+  }, [id]);
+
+  const handleCodeChange = (code) => {
+    setCode(code);
+  };
+
+  const handleCustomInputChange = (e) => {
+    setCustomInput(e.target.value);
   };
 
   if (!question) {
@@ -112,13 +160,14 @@ function Question() {
   return (
     <>
       <div className="min-h-screen flex flex-col">
-        <Navbar />
+        <UserNavbar />
         <div className="flex-grow p-4 bg-purple-100 dark:bg-gray-900 text-gray-900 dark:text-gray-300">
           <h1 className="text-3xl font-bold mb-4">{question.title}</h1>
           <div className="flex flex-col md:flex-row gap-6">
-            {/* Left side: description, test cases */}
+            {/* Left side: description, test cases, accuracy */}
             <div className="md:w-1/2">
               <p className="mb-4">{question.description}</p>
+              
               <div className="mb-4">
                 <h2 className="font-semibold mb-2">Test Cases</h2>
                 {question.testCases && question.testCases.length > 0 ? (
@@ -139,6 +188,11 @@ function Question() {
                   <p>No public test cases available.</p>
                 )}
               </div>
+              {loadingAccuracy ? (
+                <p>Loading accuracy...</p>
+              ) : (
+                questionAccuracy && <AccuracyDisplay accuracyData={questionAccuracy} type="question" />
+              )}
             </div>
 
             {/* Right side: code editor, run button, output */}
@@ -216,7 +270,7 @@ function Question() {
                   onClick={runCode}
                   className="mr-4 px-4 py-2 bg-[#6767e1] text-white rounded hover:bg-[#5757c1] focus:outline-none self-start"
                 >
-                  Run Code
+                  Run on Custom Input
                 </button>
                 <button
                   onClick={submitCode}
@@ -224,7 +278,26 @@ function Question() {
                 >
                   Submit Code
                 </button>
+                <button
+                  onClick={getAIReview}
+                  className="ml-4 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 focus:outline-none self-start"
+                  disabled={aiReviewLoading}
+                >
+                  {aiReviewLoading ? 'Generating AI Review...' : 'Get AI Review'}
+                </button>
               </div>
+              {(aiReviewLoading || aiReview) && (
+                <div className="mt-4 p-4 border border-purple-300 rounded bg-purple-50 dark:bg-purple-900 dark:border-purple-700 dark:text-purple-200 whitespace-pre-wrap font-mono text-sm max-h-64 overflow-auto break-words">
+                  <h3 className="text-lg font-semibold mb-2">AI Review</h3>
+                  <pre style={{whiteSpace: 'pre-wrap'}}>
+                    {aiReviewLoading ? (
+                      'Generating AI Review...'
+                    ) : (
+                      aiReview
+                    )}
+                  </pre>
+                </div>
+              )}
               {verdict && (
                 <div className="mt-4 p-4 border border-gray-300 rounded bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200">
                   <h3 className="text-xl font-bold mb-2">Verdict: {verdict}</h3>
@@ -270,4 +343,3 @@ function Question() {
 }
 
 export default Question;
-
