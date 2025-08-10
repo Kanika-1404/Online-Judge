@@ -13,12 +13,10 @@ const Contest = require("./models/Contest");
 const bcrypt = require("bcryptjs")
 const jwt = require('jsonwebtoken');
 
-// Add these lines to Backend/index.js
-const cors = require('cors');
 
 app.use(cors({
   origin: [
-    'https://code-arena-swart.vercel.app/',
+    'code-arena-frontend-kanika.vercel.app',
     'https://code-arena-kanika-chaurasias-projects.vercel.app/',
     'https://code-arena-git-main-kanika-chaurasias-projects.vercel.app/',
     'http://localhost:5173'
