@@ -8,11 +8,15 @@ const executePy = async (filePath, input = "") => {
   const pythonCommand = isWindows ? "py" : "python3";
 
   return new Promise((resolve, reject) => {
-    const run = spawn(pythonCommand, [filePath], { shell: true });
+    const run = spawn(pythonCommand, [filePath], { 
+      shell: false,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
 
     let stdout = "";
     let stderr = "";
 
+    // Set up event handlers before writing input
     run.stdout.on("data", (data) => {
       stdout += data.toString();
     });
@@ -33,8 +37,10 @@ const executePy = async (filePath, input = "") => {
       }
     });
 
-    if (input) {
-      run.stdin.write(input);
+    // Write input immediately after process starts
+    if (input && input.trim()) {
+      const formattedInput = input.endsWith('\n') ? input : input + '\n';
+      run.stdin.write(formattedInput);
     }
     run.stdin.end();
   });

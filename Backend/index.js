@@ -28,7 +28,7 @@ app.get("/", (req, res) => {
 });
 
 // New API endpoint to run code
-app.post("/run-code", async (req, res) => {
+app.post("/api/run-code", async (req, res) => {
     try {
         const { code, format, input } = req.body;
         if (!code || !format) {
@@ -76,7 +76,7 @@ app.post("/generate-review", async (req, res) => {
 
 const { v4: uuidv4 } = require('uuid');
 
-app.post("/register", async(req, res) => {
+app.post("/api/register", async(req, res) => {
     const { name, email, password } = req.body;
     if (!(name && email && password)){
         res.status(400).send("Please fill all info.")
@@ -250,7 +250,7 @@ app.post("/register-admin", async(req, res) => {
     res.status(200).json({message: "Admin registered successfully.", user});
 });
 
-app.post("/login", async (req, res) => {
+app.post("/api/login", async (req, res) => {
     const { email, password } = req.body;
     if (!(email && password)) {
         return res.status(400).send("Please provide email and password.");

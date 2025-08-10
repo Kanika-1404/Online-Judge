@@ -28,7 +28,7 @@ function App() {
         <Route path="/user-dashboard" element={<UserDashboard />} />
         <Route path="/question/:id" element={<Question />} />
         <Route path="/contests" element={<Contests />} />
-        <Route path="/contest/:id" element={<ContestDetail />} />
+        <Route path="/contests/:id" element={<ContestDetail />} />
 
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
 

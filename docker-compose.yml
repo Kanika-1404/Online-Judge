@@ -18,7 +18,7 @@ services:
   # Backend API Service
   backend:
     build:
-      context: .
+      context: ./Backend
       dockerfile: Dockerfile
     container_name: onlinejudge-backend
     restart: unless-stopped
@@ -26,16 +26,30 @@ services:
       - "5000:5000"
     environment:
       NODE_ENV: production
-      MONGODB_URI: mongodb://admin:password123@mongodb:27017/onlinejudge?authSource=admin
-      JWT_SECRET: your-secret-key-here
       PORT: 5000
+    env_file:
+      - ./Backend/.env
     depends_on:
       - mongodb
     volumes:
-      - ./Backend:/app
-      - /app/node_modules
+      - ./Compiler:/app/Compiler:rw
+      - ./Backend:/app/Backend:ro
+    working_dir: /app/Backend
     networks:
       - onlinejudge-network
+    # Security enhancements
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/Backend/logs
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
 
   # Compiler Service
   compiler:
@@ -50,10 +64,28 @@ services:
       NODE_ENV: production
       PORT: 8000
     volumes:
-      - ./Compiler:/app
-      - /app/node_modules
+      - ./Compiler:/app/Compiler:ro
+      - compiler_sandbox:/tmp/sandbox
+    working_dir: /app/Compiler
     networks:
       - onlinejudge-network
+    # Security enhancements for compiler
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/Compiler/codes
+      - /app/Compiler/outputs
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 50
 
   # Frontend Service
   frontend:
@@ -71,6 +103,7 @@ services:
 
 volumes:
   mongodb_data:
+  compiler_sandbox:
 
 networks:
   onlinejudge-network:

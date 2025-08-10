@@ -81,7 +81,7 @@ function ContestDetail() {
         return;
       }
 
-      const response = await fetch(`http://localhost:5000/contests/${id}/register`, {
+      const response = await fetch(`/contests/${id}/register`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -1,13 +1,12 @@
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 
 const outputPath = path.join(__dirname, "outputs");
 if (!fs.existsSync(outputPath)) {
   fs.mkdirSync(outputPath, { recursive: true });
 }
-
-const os = require("os");
 
 const executeCpp = async (filePath, input = "") => {
   const jobID = path.basename(filePath).split(".")[0];
@@ -22,17 +21,41 @@ const executeCpp = async (filePath, input = "") => {
     const compileCommand = `g++ "${filePath}" -o "${outputFilePath}"`;
     const compile = spawn(compileCommand, { shell: true });
 
+    let compileError = "";
+
+    compile.stderr.on("data", (data) => {
+      compileError += data.toString();
+    });
+
+    compile.on("error", (err) => {
+      reject(err);
+    });
+
     compile.on("close", (code) => {
       if (code !== 0) {
-        reject(`Compilation failed with exit code ${code}`);
+        reject(`Compilation failed: ${compileError || `Exit code ${code}`}`);
         return;
       }
 
-      const run = spawn(isWindows ? outputFilePath : `./${outputFilePath}`, [], { shell: true });
+      // Make the file executable on Unix systems
+      if (!isWindows) {
+        try {
+          fs.chmodSync(outputFilePath, '755');
+        } catch (err) {
+          console.warn("Could not set executable permissions:", err.message);
+        }
+      }
+
+      const run = spawn(outputFilePath, [], { 
+        shell: false,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: outputPath
+      });
 
       let stdout = "";
       let stderr = "";
 
+      // Set up event handlers before writing input
       run.stdout.on("data", (data) => {
         stdout += data.toString();
       });
@@ -42,7 +65,7 @@ const executeCpp = async (filePath, input = "") => {
       });
 
       run.on("error", (err) => {
-        reject(err);
+        reject(`Execution error: ${err.message}`);
       });
 
       run.on("close", (code) => {
@@ -53,18 +76,12 @@ const executeCpp = async (filePath, input = "") => {
         }
       });
 
-      if (input) {
-        run.stdin.write(input);
+      // Write input immediately after process starts
+      if (input && input.trim()) {
+        const formattedInput = input.endsWith('\n') ? input : input + '\n';
+        run.stdin.write(formattedInput);
       }
       run.stdin.end();
-    });
-
-    compile.stderr.on("data", (data) => {
-      stderr += data.toString();
-    });
-
-    compile.on("error", (err) => {
-      reject(err);
     });
   });
 };
