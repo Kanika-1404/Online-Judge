@@ -5,6 +5,7 @@ const {
   updateQuestion,
   deleteQuestion,
   validateQuestionData,
+  getQuestionAccuracyData,
 } = require("../services/questionService");
 const { findUserById } = require("../services/userService");
 
@@ -26,6 +27,17 @@ const getQuestion = async (req, res) => {
     res.status(200).json(question);
   } catch (error) {
     res.status(500).send("Error fetching question.");
+  }
+};
+
+const getQuestionAccuracy = async (req, res) => {
+  try {
+    const questionId = req.params.id;
+    const accuracyData = await getQuestionAccuracyData(questionId);
+    res.status(200).json(accuracyData);
+  } catch (error) {
+    console.error("Error fetching question accuracy:", error);
+    res.status(500).json({ error: "Error fetching question accuracy." });
   }
 };
 
@@ -143,6 +155,7 @@ const removeQuestion = async (req, res) => {
 module.exports = {
   getQuestions,
   getQuestion,
+  getQuestionAccuracy,
   addQuestion,
   editQuestion,
   removeQuestion,

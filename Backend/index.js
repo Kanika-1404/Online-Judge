@@ -9,8 +9,6 @@ dbConnection();
 app.use(
   cors({
     origin: [
-      "https://online-judge-swart.vercel.app/",
-      "http://localhost:3000",
       "http://localhost:5173",
     ],
     credentials: true,

@@ -1,20 +1,55 @@
 const executeCode = async (code, format, input) => {
   const compilerUrl = process.env.COMPILER_URL || "http://localhost:8000";
+  
+  console.log("=== COMPILER SERVICE REQUEST ===");
+  console.log("Compiler URL:", compilerUrl);
+  console.log("Request payload:", { code: code.substring(0, 100) + "...", format, input });
 
-  const response = await fetch(`${compilerUrl}/execute`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ code, format, input }),
-  });
+  try {
+    const response = await fetch(`${compilerUrl}/execute`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ code, format, input }),
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Compiler service error");
+    console.log("Compiler service response status:", response.status);
+    console.log("Compiler service response ok:", response.ok);
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+        console.log("Error response data:", errorData);
+      } catch (parseError) {
+        const textError = await response.text();
+        console.log("Error response text:", textError);
+        throw new Error(`Compiler service error: ${response.status} - ${textError}`);
+      }
+      throw new Error(errorData.error || `Compiler service error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log("Compiler service success:", result);
+    return result;
+    
+  } catch (error) {
+    console.error("=== COMPILER SERVICE ERROR ===");
+    console.error("Error type:", error.constructor.name);
+    console.error("Error message:", error.message);
+    
+    // Check if it's a network error
+    if (error.code === 'ECONNREFUSED' || error.message.includes('ECONNREFUSED')) {
+      throw new Error(`Cannot connect to compiler service at ${compilerUrl}. Is the compiler service running?`);
+    }
+    
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error(`Network error connecting to compiler service: ${error.message}`);
+    }
+    
+    throw error;
   }
-
-  return await response.json();
 };
 
 const runTestCases = async (code, format, testCases) => {

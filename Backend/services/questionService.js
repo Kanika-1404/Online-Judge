@@ -1,4 +1,5 @@
 const Question = require("../models/Question");
+const Submission = require("../models/Submission");
 
 const getAllQuestions = async () => {
   return await Question.find({}, "title difficulty");
@@ -56,6 +57,83 @@ const getRecentQuestions = async (limit = 5) => {
     .select("title difficulty");
 };
 
+const getQuestionAccuracyData = async (questionId) => {
+  try {
+    // Check if question exists
+    const question = await Question.findById(questionId);
+    if (!question) {
+      throw new Error("Question not found.");
+    }
+
+    // Get all submissions for this question using your Submission model
+    const submissions = await Submission.find({ 
+      questionId: questionId 
+    }).select('verdict userId timeSubmitted score language');
+
+    if (submissions.length === 0) {
+      return {
+        totalSubmissions: 0,
+        acceptedSubmissions: 0,
+        accuracyPercentage: 0,
+        uniqueUsers: 0,
+        userAcceptanceRate: 0,
+        averageScore: 0,
+        recentSubmissions: [],
+        questionTitle: question.title,
+        questionDifficulty: question.difficulty
+      };
+    }
+
+    // Calculate statistics based on your Submission model
+    const totalSubmissions = submissions.length;
+    const acceptedSubmissions = submissions.filter(sub => sub.verdict === 'Accepted').length;
+    const accuracyPercentage = totalSubmissions > 0 ? Math.round((acceptedSubmissions / totalSubmissions) * 100) : 0;
+    
+    // Get unique users who attempted this question
+    const uniqueUserIds = [...new Set(submissions.map(sub => sub.userId.toString()))];
+    const uniqueUsers = uniqueUserIds.length;
+
+    // Get recent submissions (last 10)
+    const recentSubmissions = submissions
+      .sort((a, b) => new Date(b.timeSubmitted) - new Date(a.timeSubmitted))
+      .slice(0, 10)
+      .map(sub => ({
+        verdict: sub.verdict,
+        timeSubmitted: sub.timeSubmitted,
+        userId: sub.userId,
+        score: sub.score,
+        language: sub.language
+      }));
+
+    // Calculate acceptance rate by unique users
+    const usersWithAcceptedSubmission = await Submission.distinct('userId', {
+      questionId: questionId,
+      verdict: 'Accepted'
+    });
+    const userAcceptanceRate = uniqueUsers > 0 ? Math.round((usersWithAcceptedSubmission.length / uniqueUsers) * 100) : 0;
+
+    // Calculate average score
+    const totalScore = submissions.reduce((sum, sub) => sum + (sub.score || 0), 0);
+    const averageScore = totalSubmissions > 0 ? Math.round(totalScore / totalSubmissions) : 0;
+
+    return {
+      totalSubmissions,
+      acceptedSubmissions,
+      accuracyPercentage,
+      uniqueUsers,
+      userAcceptanceRate,
+      averageScore,
+      recentSubmissions,
+      questionTitle: question.title,
+      questionDifficulty: question.difficulty
+    };
+
+  } catch (error) {
+    console.error('Error calculating question accuracy:', error);
+    throw error;
+  }
+};
+
 const validateQuestionData = (questionData) => {
   const { title, description, difficulty, testCases } = questionData;
 
@@ -110,5 +188,6 @@ module.exports = {
   deleteQuestion,
   countQuestions,
   getRecentQuestions,
+  getQuestionAccuracyData,
   validateQuestionData,
 };
