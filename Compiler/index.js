@@ -21,7 +21,7 @@ app.get("/health", (req, res) => {
 app.post("/execute", async (req, res) => {
   try {
     const { code, format, input } = req.body;
-    
+
     if (!code || !format) {
       return res.status(400).json({ error: "Code and format are required" });
     }
@@ -40,15 +40,17 @@ app.post("/execute", async (req, res) => {
         output = await executePy(filePath, input || "");
         break;
       default:
-        return res.status(400).json({ error: `Language ${format} is not supported yet.` });
+        return res
+          .status(400)
+          .json({ error: `Language '${format}' is not supported yet.` });
     }
 
     res.json({ output });
   } catch (error) {
     console.error("Execution error:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: error.message || "Execution failed",
-      details: error.toString()
+      details: error.toString(),
     });
   }
 });

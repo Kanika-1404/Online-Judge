@@ -40,22 +40,21 @@ const executeCpp = async (filePath, input = "") => {
       // Make the file executable on Unix systems
       if (!isWindows) {
         try {
-          fs.chmodSync(outputFilePath, '755');
+          fs.chmodSync(outputFilePath, "755");
         } catch (err) {
           console.warn("Could not set executable permissions:", err.message);
         }
       }
 
-      const run = spawn(outputFilePath, [], { 
+      const run = spawn(outputFilePath, [], {
         shell: false,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: outputPath
+        stdio: ["pipe", "pipe", "pipe"],
+        cwd: outputPath,
       });
 
       let stdout = "";
       let stderr = "";
 
-      // Set up event handlers before writing input
       run.stdout.on("data", (data) => {
         stdout += data.toString();
       });
@@ -78,7 +77,7 @@ const executeCpp = async (filePath, input = "") => {
 
       // Write input immediately after process starts
       if (input && input.trim()) {
-        const formattedInput = input.endsWith('\n') ? input : input + '\n';
+        const formattedInput = input.endsWith("\n") ? input : input + "\n";
         run.stdin.write(formattedInput);
       }
       run.stdin.end();
