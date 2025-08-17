@@ -3,7 +3,8 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
-const outputPath = path.join(__dirname, "outputs");
+// Use /tmp for AWS container environment
+const outputPath = process.env.NODE_ENV === 'production' ? '/tmp' : path.join(__dirname, "outputs");
 if (!fs.existsSync(outputPath)) {
   fs.mkdirSync(outputPath, { recursive: true });
 }
@@ -18,8 +19,15 @@ const executeC = async (filePath, input = "") => {
   }
 
   return new Promise((resolve, reject) => {
-    const compileCommand = `gcc "${filePath}" -o "${outputFilePath}"`;
-    const compile = spawn(compileCommand, { shell: true });
+    // Compilation command
+    const compileCommand = isWindows 
+      ? `gcc "${filePath}" -o "${outputFilePath}"`
+      : `gcc "${filePath}" -o "${outputFilePath}" -lm -lpthread`;
+
+    const compile = spawn("sh", ["-c", compileCommand], {
+      timeout: 30000,
+      env: { ...process.env, PATH: process.env.PATH }
+    });
 
     let compileError = "";
 
@@ -28,7 +36,7 @@ const executeC = async (filePath, input = "") => {
     });
 
     compile.on("error", (err) => {
-      reject(err);
+      reject(`Compilation process error: ${err.message}`);
     });
 
     compile.on("close", (code) => {
@@ -37,7 +45,6 @@ const executeC = async (filePath, input = "") => {
         return;
       }
 
-      // Make the file executable on Unix systems
       if (!isWindows) {
         try {
           fs.chmodSync(outputFilePath, '755');
@@ -49,13 +56,14 @@ const executeC = async (filePath, input = "") => {
       const run = spawn(outputFilePath, [], { 
         shell: false,
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: outputPath
+        cwd: outputPath,
+        timeout: 10000,
+        env: { ...process.env }
       });
 
       let stdout = "";
       let stderr = "";
 
-      // Set up event handlers before writing input
       run.stdout.on("data", (data) => {
         stdout += data.toString();
       });
@@ -69,6 +77,14 @@ const executeC = async (filePath, input = "") => {
       });
 
       run.on("close", (code) => {
+        try {
+          if (fs.existsSync(outputFilePath)) {
+            fs.unlinkSync(outputFilePath);
+          }
+        } catch (err) {
+          console.warn("Could not clean up executable:", err.message);
+        }
+
         if (code !== 0) {
           reject(stderr || `Execution failed with exit code ${code}`);
         } else {
@@ -76,10 +92,13 @@ const executeC = async (filePath, input = "") => {
         }
       });
 
-      // Write input immediately after process starts
       if (input && input.trim()) {
         const formattedInput = input.endsWith('\n') ? input : input + '\n';
-        run.stdin.write(formattedInput);
+        try {
+          run.stdin.write(formattedInput);
+        } catch (err) {
+          console.warn("Error writing input:", err.message);
+        }
       }
       run.stdin.end();
     });
