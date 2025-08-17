@@ -796,3 +796,37 @@ app.get("/api/user/accuracy/:userId?", authenticateToken, async (req, res) => {
         acceptedSubmissions: 0,
         rejectedSubmissions: 0,
         pendingSubmissions: 0
+      });
+    }
+
+    const totalSubmissions = submissions.length;
+    const acceptedSubmissions = submissions.filter(sub => sub.verdict === 'Accepted').length;
+    const rejectedSubmissions = submissions.filter(sub => sub.verdict === 'Wrong Answer').length;
+    const pendingSubmissions = submissions.filter(sub => sub.verdict === 'Pending').length;
+
+    const overallAccuracy = (acceptedSubmissions / totalSubmissions) * 100;
+
+    res.json({
+      overallAccuracy: Math.round(overallAccuracy * 100) / 100,
+      totalSubmissions,
+      acceptedSubmissions,
+      rejectedSubmissions,
+      pendingSubmissions,
+      submissions: submissions.map(sub => ({
+        question: sub.questionId,
+        verdict: sub.verdict,
+        score: sub.score,
+        language: sub.language,
+        timeSubmitted: sub.timeSubmitted
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Server error fetching user accuracy" });
+  }
+});
+
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
