@@ -9,30 +9,20 @@ const User = require("./models/User");
 const Question = require("./models/Question");
 const Submission = require("./models/Submission");
 const Contest = require("./models/Contest");
-
+const { generateFile } = require("../Compiler/generateFile");
+// const executeCpp = require("../Compiler/executeCpp");
+// const executeC = require("../Compiler/executeC");
+// const executePy = require("../Compiler/executePy");
 const bcrypt = require("bcryptjs")
 const jwt = require('jsonwebtoken');
 
 
-app.use(cors({
-  origin: [
-    'code-arena-frontend-kanika.vercel.app',
-    'https://code-arena-kanika-chaurasias-projects.vercel.app/',
-    'https://code-arena-git-main-kanika-chaurasias-projects.vercel.app/',
-    'http://localhost:5173'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(cors());
 
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 
-const { generateFile } = require("../Compiler/generateFile");
-const executeCpp = require("../Compiler/executeCpp");
-const executeC = require("../Compiler/executeC");
-const executePy = require("../Compiler/executePy");
+// Remove local compiler dependencies - will use AWS compiler service via HTTP
 const { generateReview } = require("./Ai-review.js");
 
 app.get("/", (req, res) => {
@@ -46,29 +36,31 @@ app.post("/api/run-code", async (req, res) => {
         if (!code || !format) {
             return res.status(400).json({ error: "Code and format are required" });
         }
-        // Generate file
-        const filePath = generateFile(format, code);
-        // Execute file based on format
-        let output;
-        if (format === "cpp") {
-            output = await executeCpp(filePath, input);
-        } else if (format === "c") {
-            output = await executeC(filePath, input);
-        } else if (format === "py") {
-            output = await executePy(filePath, input);
-        } else {
-            return res.status(400).json({ error: `Language ${format} is not supported yet.` });
+
+        // Use AWS compiler service instead of local compiler
+        const compilerUrl = process.env.COMPILER_URL || 'http://localhost:8000';
+        
+        const response = await fetch(`${compilerUrl}/execute`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ code, format, input }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Compiler service error');
         }
-        console.log({output});
-        res.json({ output });
+
+        const result = await response.json();
+        res.json(result);
     } catch (error) {
-        if (error.stderr) {
-            res.status(500).json({ error: error.stderr });
-        } else if (error.error) {
-            res.status(500).json({ error: error.error.message });
-        } else {
-            res.status(500).json({ error: "Unknown error occurred" });
-        }
+        console.error("Compiler service error:", error);
+        res.status(500).json({ 
+            error: "Failed to execute code",
+            details: error.message 
+        });
     }
 });
 
