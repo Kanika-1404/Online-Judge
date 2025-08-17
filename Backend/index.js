@@ -12,7 +12,12 @@ const Contest = require("./models/Contest");
 const bcrypt = require("bcryptjs")
 const jwt = require('jsonwebtoken');
 
-app.use(cors());
+// Update CORS to allow your Vercel frontend
+app.use(cors({
+  origin: ['https://online-judge-lac.vercel.app', 'http://localhost:3000', 'http://localhost:5173'],
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 
