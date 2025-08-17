@@ -4,19 +4,21 @@ const path = require("path");
 const os = require("os");
 
 const executePy = async (filePath, input = "") => {
-  const isWindows = os.platform() === "win32";
-  const pythonCommand = isWindows ? "py" : "python3";
+  let pythonCommand = "python3";
+  if (os.platform() === "win32") {
+    pythonCommand = "py"; // fallback for Windows
+  }
+
+  const absPath = path.resolve(filePath);
 
   return new Promise((resolve, reject) => {
-    const run = spawn(pythonCommand, [filePath], { 
-      shell: false,
-      stdio: ['pipe', 'pipe', 'pipe']
+    const run = spawn(pythonCommand, [absPath], {
+      stdio: ["pipe", "pipe", "pipe"],
     });
 
     let stdout = "";
     let stderr = "";
 
-    // Set up event handlers before writing input
     run.stdout.on("data", (data) => {
       stdout += data.toString();
     });
@@ -25,24 +27,28 @@ const executePy = async (filePath, input = "") => {
       stderr += data.toString();
     });
 
-    run.on("error", (err) => {
-      reject(err);
-    });
+    run.on("error", (err) => reject(err));
+
+    const timer = setTimeout(() => {
+      run.kill("SIGKILL");
+      reject(new Error("Execution timed out"));
+    }, 5000);
 
     run.on("close", (code) => {
+      clearTimeout(timer);
       if (code !== 0) {
-        reject(stderr || `Execution failed with exit code ${code}`);
+        reject(new Error(stderr || `Execution failed with exit code ${code}`));
       } else {
-        resolve(stdout);
+        resolve(stdout.trim());
       }
     });
 
-    // Write input immediately after process starts
     if (input && input.trim()) {
-      const formattedInput = input.endsWith('\n') ? input : input + '\n';
-      run.stdin.write(formattedInput);
+      run.stdin.write(input.endsWith("\n") ? input : input + "\n");
+      run.stdin.end();
     }
-    run.stdin.end();
+    // ❌ previously you were always ending stdin
+    // ✅ now we only end stdin if input is provided
   });
 };
 

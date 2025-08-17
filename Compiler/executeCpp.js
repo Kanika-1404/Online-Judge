@@ -18,6 +18,7 @@ const executeCpp = async (filePath, input = "") => {
   }
 
   return new Promise((resolve, reject) => {
+    // Compile
     const compileCommand = `g++ "${filePath}" -o "${outputFilePath}"`;
     const compile = spawn(compileCommand, { shell: true });
 
@@ -37,19 +38,19 @@ const executeCpp = async (filePath, input = "") => {
         return;
       }
 
-      // Make the file executable on Unix systems
+      // Ensure executable permission (Linux/Mac)
       if (!isWindows) {
         try {
-          fs.chmodSync(outputFilePath, "755");
+          fs.chmodSync(outputFilePath, 0o755);
         } catch (err) {
           console.warn("Could not set executable permissions:", err.message);
         }
       }
 
+      // Run compiled file
       const run = spawn(outputFilePath, [], {
         shell: false,
-        stdio: ["pipe", "pipe", "pipe"],
-        cwd: outputPath,
+        stdio: ["pipe", "pipe", "pipe"], // stdin, stdout, stderr
       });
 
       let stdout = "";
@@ -71,11 +72,11 @@ const executeCpp = async (filePath, input = "") => {
         if (code !== 0) {
           reject(stderr || `Execution failed with exit code ${code}`);
         } else {
-          resolve(stdout);
+          resolve(stdout.trim());
         }
       });
 
-      // Write input immediately after process starts
+      // Write input if provided
       if (input && input.trim()) {
         const formattedInput = input.endsWith("\n") ? input : input + "\n";
         run.stdin.write(formattedInput);

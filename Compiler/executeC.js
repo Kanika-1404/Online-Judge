@@ -18,6 +18,7 @@ const executeC = async (filePath, input = "") => {
   }
 
   return new Promise((resolve, reject) => {
+    // Compile
     const compileCommand = `gcc "${filePath}" -o "${outputFilePath}"`;
     const compile = spawn(compileCommand, { shell: true });
 
@@ -27,9 +28,7 @@ const executeC = async (filePath, input = "") => {
       compileError += data.toString();
     });
 
-    compile.on("error", (err) => {
-      reject(err);
-    });
+    compile.on("error", (err) => reject(err));
 
     compile.on("close", (code) => {
       if (code !== 0) {
@@ -37,19 +36,19 @@ const executeC = async (filePath, input = "") => {
         return;
       }
 
-      // Make the file executable on Unix systems
+      // Ensure Linux has execute permission
       if (!isWindows) {
         try {
-          fs.chmodSync(outputFilePath, "755");
+          fs.chmodSync(outputFilePath, 0o755);
         } catch (err) {
           console.warn("Could not set executable permissions:", err.message);
         }
       }
 
+      // Run compiled binary
       const run = spawn(outputFilePath, [], {
         shell: false,
-        stdio: ["pipe", "pipe", "pipe"],
-        cwd: outputPath,
+        stdio: ["pipe", "pipe", "pipe"], // stdin, stdout, stderr
       });
 
       let stdout = "";
@@ -63,21 +62,19 @@ const executeC = async (filePath, input = "") => {
         stderr += data.toString();
       });
 
-      run.on("error", (err) => {
-        reject(`Execution error: ${err.message}`);
-      });
+      run.on("error", (err) => reject(`Execution error: ${err.message}`));
 
       run.on("close", (code) => {
         if (code !== 0) {
           reject(stderr || `Execution failed with exit code ${code}`);
         } else {
-          resolve(stdout);
+          resolve(stdout.trim());
         }
       });
 
+      // Write input
       if (input && input.trim()) {
-        const formattedInput = input.endsWith("\n") ? input : input + "\n";
-        run.stdin.write(formattedInput);
+        run.stdin.write(input.endsWith("\n") ? input : input + "\n");
       }
       run.stdin.end();
     });
