@@ -39,7 +39,7 @@ export default function RegisterForm() {
           password: formData.password
         })
       });
-
+      console.log(response)
       if (response.ok) {
         const data = await response.json();
         setMessage(data.message || "Registration successful");

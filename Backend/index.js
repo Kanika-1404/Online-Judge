@@ -28,81 +28,7 @@ app.get("/", (req, res) => {
     res.send("Hello, World!");
 });
 
-// New API endpoint to run code - uses AWS compiler service
-app.post("/api/run-code", async (req, res) => {
-    try {
-        const { code, format, input } = req.body;
-        if (!code || !format) {
-            return res.status(400).json({ error: "Code and format are required" });
-        }
 
-        // Use AWS compiler service instead of local compiler
-        const compilerUrl = process.env.COMPILER_URL || 'http://localhost:8000';
-        
-        const response = await fetch(`${compilerUrl}/execute`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ code, format, input }),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Compiler service error');
-        }
-
-        const result = await response.json();
-        res.json(result);
-    } catch (error) {
-        console.error("Compiler service error:", error);
-        res.status(500).json({ 
-            error: "Failed to execute code",
-            details: error.message 
-        });
-    }
-});
-
-// New API endpoint to generate AI review
-app.post("/generate-review", async (req, res) => {
-    try {
-        const { question, code } = req.body;
-        if (!question || !code) {
-            return res.status(400).json({ error: "Question and code are required" });
-        }
-        const review = await generateReview(question, code);
-        res.json({ review });
-    } catch (error) {
-        res.status(500).json({ error: "Error generating AI review" });
-    }
-});
-
-const { v4: uuidv4 } = require('uuid');
-
-app.post("/api/register", async(req, res) => {
-    const { name, email, password } = req.body;
-    if (!(name && email && password)){
-        res.status(400).send("Please fill all info.")
-    }
-    // check if user already exist
-    const existingUser = await User.findOne({ email });
-    if (existingUser){
-        return res.status(400).send("User already exist with this email.")
-    }
-    // hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
-    // Save user in DB
-    const user = await User.create({
-        userId: uuidv4(),
-        fullName: name,
-        email,
-        password: hashedPassword
-    });
-    // generate token
-    const token = jwt.sign({id: user._id, email}, process.env.JWT_SECRET || 'defaultsecret');
-    user.password = undefined;
-    res.status(200).json({message: "You have successfully registered.", user});
-});
 
 // New API endpoint for admin registration
 // GET route to serve admin registration form
@@ -525,6 +451,84 @@ app.post("/contests", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Server error creating contest." });
   }
 });
+
+
+// New API endpoint to run code - uses AWS compiler service
+app.post("/api/run-code", async (req, res) => {
+    try {
+        const { code, format, input } = req.body;
+        if (!code || !format) {
+            return res.status(400).json({ error: "Code and format are required" });
+        }
+
+        // Use AWS compiler service instead of local compiler
+        const compilerUrl = process.env.COMPILER_URL || 'http://localhost:8000';
+        
+        const response = await fetch(`${compilerUrl}/execute`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ code, format, input }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Compiler service error');
+        }
+
+        const result = await response.json();
+        res.json(result);
+    } catch (error) {
+        console.error("Compiler service error:", error);
+        res.status(500).json({ 
+            error: "Failed to execute code",
+            details: error.message 
+        });
+    }
+});
+
+// New API endpoint to generate AI review
+app.post("/generate-review", async (req, res) => {
+    try {
+        const { question, code } = req.body;
+        if (!question || !code) {
+            return res.status(400).json({ error: "Question and code are required" });
+        }
+        const review = await generateReview(question, code);
+        res.json({ review });
+    } catch (error) {
+        res.status(500).json({ error: "Error generating AI review" });
+    }
+});
+
+const { v4: uuidv4 } = require('uuid');
+
+app.post("/api/register", async(req, res) => {
+    const { name, email, password } = req.body;
+    if (!(name && email && password)){
+        res.status(400).send("Please fill all info.")
+    }
+    // check if user already exist
+    const existingUser = await User.findOne({ email });
+    if (existingUser){
+        return res.status(400).send("User already exist with this email.")
+    }
+    // hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    // Save user in DB
+    const user = await User.create({
+        userId: uuidv4(),
+        fullName: name,
+        email,
+        password: hashedPassword
+    });
+    // generate token
+    const token = jwt.sign({id: user._id, email}, process.env.JWT_SECRET || 'defaultsecret');
+    user.password = undefined;
+    res.status(200).json({message: "You have successfully registered.", user});
+});
+
 
 // Update contest - admin only
 app.put("/contests/:id", authenticateToken, async (req, res) => {
