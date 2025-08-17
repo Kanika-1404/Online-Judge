@@ -65,7 +65,7 @@ function Question() {
     setVerdict(null);
     setTestResults([]);
     try {
-      const response = await fetch("http://localhost:5000/run-code", {
+      const response = await fetch("http://localhost:5000/api/run-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, format: language, input: customInput }),
