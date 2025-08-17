@@ -14,7 +14,7 @@ const jwt = require('jsonwebtoken');
 
 // Update CORS to allow your Vercel frontend
 app.use(cors({
-  origin: ['https://online-judge-lac.vercel.app', 'http://localhost:3000', 'http://localhost:5173'],
+  origin: ['https://online-judge-swart.vercel.app/', 'http://localhost:3000', 'http://localhost:5173'],
   credentials: true
 }));
 
