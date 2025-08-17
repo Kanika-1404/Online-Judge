@@ -9,21 +9,27 @@ const User = require("./models/User");
 const Question = require("./models/Question");
 const Submission = require("./models/Submission");
 const Contest = require("./models/Contest");
+const { generateFile } = require("../Compiler/generateFile");
+// const executeCpp = require("../Compiler/executeCpp");
+// const executeC = require("../Compiler/executeC");
+// const executePy = require("../Compiler/executePy");
 const bcrypt = require("bcryptjs")
 const jwt = require('jsonwebtoken');
 
+
 app.use(cors());
+
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 
-// Remove ALL local compiler dependencies - use AWS compiler service via HTTP
+// Remove local compiler dependencies - will use AWS compiler service via HTTP
 const { generateReview } = require("./Ai-review.js");
 
 app.get("/", (req, res) => {
     res.send("Hello, World!");
 });
 
-// New API endpoint to run code - uses AWS compiler service
+// New API endpoint to run code
 app.post("/api/run-code", async (req, res) => {
     try {
         const { code, format, input } = req.body;
@@ -605,7 +611,6 @@ app.post("/contests/:id/register", authenticateToken, async (req, res) => {
   }
 });
 
-// Updated submit-code endpoint - uses AWS compiler service
 app.post("/submit-code", authenticateToken, async (req, res) => {
   try {
     const { code, format, questionId } = req.body;
@@ -622,27 +627,20 @@ app.post("/submit-code", authenticateToken, async (req, res) => {
     const results = [];
     let allPassed = true;
 
-    // Use AWS compiler service for each test case
-    const compilerUrl = process.env.COMPILER_URL || 'http://localhost:8000';
-    
     for (const testCase of testCases) {
+      const filePath = generateFile(format, code);
       try {
-        const response = await fetch(`${compilerUrl}/execute`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ code, format, input: testCase.input }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Compiler service error');
+        let output;
+        if (format === "cpp") {
+          output = await executeCpp(filePath, testCase.input);
+        } else if (format === "c") {
+          output = await executeC(filePath, testCase.input);
+        } else if (format === "py") {
+          output = await executePy(filePath, testCase.input);
+        } else {
+          return res.status(400).json({ error: `Language ${format} is not supported yet.` });
         }
 
-        const result = await response.json();
-        const output = result.output;
-        
         const trimmedOutput = output.trim();
         const expectedOutput = testCase.output.trim();
 
@@ -795,4 +793,172 @@ app.get("/api/user/accuracy/:userId?", authenticateToken, async (req, res) => {
         totalSubmissions: 0,
         acceptedSubmissions: 0,
         rejectedSubmissions: 0,
-        pendingSubmissions: 0
+        pendingSubmissions: 0,
+        questionAccuracy: [],
+        recentSubmissions: []
+      });
+    }
+
+    // Calculate overall accuracy
+    const totalSubmissions = submissions.length;
+    const acceptedSubmissions = submissions.filter(
+      sub => sub.verdict === 'Accepted'
+    ).length;
+    const rejectedSubmissions = submissions.filter(
+      sub => sub.verdict === 'Wrong Answer' || sub.verdict === 'Rejected'
+    ).length;
+    const pendingSubmissions = submissions.filter(
+      sub => !sub.verdict || sub.verdict === 'Pending'
+    ).length;
+
+    const overallAccuracy = totalSubmissions > 0 
+      ? Math.round((acceptedSubmissions / totalSubmissions) * 100) 
+      : 0;
+
+    // Calculate accuracy per question
+    const questionAccuracyMap = {};
+    submissions.forEach(submission => {
+      if (!submission.questionId || !submission.questionId._id) {
+        // Skip submissions with null questionId to avoid errors
+        return;
+      }
+      const questionId = submission.questionId._id.toString();
+      if (!questionAccuracyMap[questionId]) {
+        questionAccuracyMap[questionId] = {
+          questionId,
+          title: submission.questionId.title || 'Unknown Question',
+          difficulty: submission.questionId.difficulty || 'Unknown',
+          submissions: [],
+          accepted: 0,
+          total: 0
+        };
+      }
+      
+      questionAccuracyMap[questionId].submissions.push(submission);
+      questionAccuracyMap[questionId].total++;
+      if (submission.verdict === 'Accepted') {
+        questionAccuracyMap[questionId].accepted++;
+      }
+    });
+
+    const questionAccuracy = Object.values(questionAccuracyMap).map(q => ({
+      questionId: q.questionId,
+      title: q.title,
+      difficulty: q.difficulty,
+      accuracy: q.total > 0 ? Math.round((q.accepted / q.total) * 100) : 0,
+      totalAttempts: q.total,
+      successfulAttempts: q.accepted,
+      averageScore: q.submissions.reduce((sum, sub) => sum + (sub.score || 0), 0) / q.total
+    }));
+
+    // Get recent submissions (last 10)
+    const recentSubmissions = submissions.slice(0, 10).map(sub => ({
+      _id: sub._id,
+      questionId: sub.questionId && sub.questionId._id ? sub.questionId._id : null,
+      questionTitle: sub.questionId && sub.questionId.title ? sub.questionId.title : 'Unknown Question',
+      verdict: sub.verdict,
+      score: sub.score,
+      language: sub.language,
+      timeSubmitted: sub.timeSubmitted
+    })).filter(sub => sub.questionId !== null);
+
+    res.json({
+      overallAccuracy,
+      totalSubmissions,
+      acceptedSubmissions,
+      rejectedSubmissions,
+      pendingSubmissions,
+      questionAccuracy,
+      recentSubmissions
+    });
+  } catch (error) {
+    console.error("Error calculating accuracy:", error);
+    res.status(500).json({ error: "Server error calculating accuracy" });
+  }
+});
+
+// New endpoint to get question-specific accuracy
+app.get("/api/question/accuracy/:questionId", async (req, res) => {
+  try {
+    const { questionId } = req.params;
+    
+    // Validate question exists
+    const question = await Question.findById(questionId);
+    if (!question) {
+      return res.status(404).json({ error: "Question not found" });
+    }
+
+    const submissions = await Submission.find({ questionId })
+      .populate('userId', 'fullName')
+      .sort({ timeSubmitted: -1 });
+
+    if (!submissions || submissions.length === 0) {
+      return res.json({
+        questionId,
+        title: question.title,
+        accuracy: 0,
+        totalAttempts: 0,
+        successfulAttempts: 0,
+        averageScore: 0,
+        submissions: []
+      });
+    }
+
+    const totalAttempts = submissions.length;
+    const successfulAttempts = submissions.filter(
+      sub => sub.verdict === 'Accepted'
+    ).length;
+    
+    const totalScore = submissions.reduce(
+      (sum, sub) => sum + (sub.score || 0), 0
+    );
+    const averageScore = totalAttempts > 0 
+      ? Math.round(totalScore / totalAttempts) 
+      : 0;
+
+    const accuracy = totalAttempts > 0 
+      ? Math.round((successfulAttempts / totalAttempts) * 100) 
+      : 0;
+
+    // Get unique users who attempted this question
+    const uniqueUsers = [...new Set(submissions.map(sub => sub.userId && sub.userId._id ? sub.userId._id.toString() : null).filter(id => id !== null))].length;
+
+    res.json({
+      questionId,
+      title: question.title,
+      accuracy,
+      totalAttempts,
+      successfulAttempts,
+      averageScore,
+      uniqueUsers,
+      submissions: submissions.slice(0, 10).map(sub => ({
+        userId: sub.userId && sub.userId._id ? sub.userId._id : null,
+        userName: sub.userId && sub.userId.fullName ? sub.userId.fullName : 'Unknown User',
+        verdict: sub.verdict,
+        score: sub.score,
+        language: sub.language,
+        timeSubmitted: sub.timeSubmitted
+      })).filter(sub => sub.userId !== null)
+    });
+  } catch (error) {
+    console.error("Error calculating question accuracy:", error);
+    res.status(500).json({ error: "Server error calculating question accuracy" });
+  }
+});
+
+// Get user profile endpoint
+app.get("/api/user/profile", authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.json({ user });
+  } catch (error) {
+    res.status(500).json({ error: "Server error fetching user profile" });
+  }
+});
+
+app.listen(5000, ()=> {
+    console.log("Server is listening to port 5000.");
+});
