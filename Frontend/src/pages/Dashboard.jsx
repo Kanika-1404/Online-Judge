@@ -14,7 +14,7 @@ function Dashboard() {
   useEffect(() => {
     async function fetchQuestions() {
       try {
-        const response = await fetch('http://localhost:5000/questions');
+        const response = await fetch('https://code-arena-backend-x83f.onrender.com/questions');
         if (response.ok) {
           const data = await response.json();
           setProblems(data);
@@ -30,7 +30,7 @@ function Dashboard() {
       setLoadingAccuracy(true);
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:5000/api/user/accuracy', {
+        const response = await fetch('https://code-arena-backend-x83f.onrender.com/api/user/accuracy', {
           headers: {
             'Authorization': `Bearer ${token}`,
           },

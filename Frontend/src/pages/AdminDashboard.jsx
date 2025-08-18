@@ -44,7 +44,7 @@ const AdminDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/dashboard-stats', {
+      const response = await axios.get('https://code-arena-backend-x83f.onrender.com/dashboard-stats', {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -68,7 +68,7 @@ const AdminDashboard = () => {
   const fetchQuestions = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/questions', {
+      const response = await axios.get('https://code-arena-backend-x83f.onrender.com/questions', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setQuestions(response.data);
@@ -113,7 +113,7 @@ const AdminDashboard = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:5000/questions', {
+      const response = await axios.post('https://code-arena-backend-x83f.onrender.com/questions', {
         title,
         description,
         tags: tagsArray,
@@ -158,7 +158,7 @@ const AdminDashboard = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:5000/contests', {
+      const response = await axios.post('https://code-arena-backend-x83f.onrender.com/contests', {
         contestId: `contest-${Date.now()}`,
         name: contestName,
         description: contestDescription,

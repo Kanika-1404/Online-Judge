@@ -11,7 +11,7 @@ function Contests() {
   useEffect(() => {
     const fetchContests = async () => {
       try {
-        const response = await fetch('http://localhost:5000/contests');
+        const response = await fetch('https://code-arena-backend-x83f.onrender.com/contests');
         if (response.ok) {
           const data = await response.json();
           setContests(data);

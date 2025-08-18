@@ -15,7 +15,7 @@ function ContestDetail() {
   useEffect(() => {
     const fetchContest = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/contests/${id}`);
+        const response = await fetch(`https://code-arena-backend-x83f.onrender.com/contests/${id}`);
         if (response.ok) {
           const data = await response.json();
           setContest(data);
@@ -23,7 +23,7 @@ function ContestDetail() {
           // Check if user is registered
           const token = localStorage.getItem('token');
           if (token) {
-            const userResponse = await fetch('http://localhost:5000/api/user/profile', {
+            const userResponse = await fetch('https://code-arena-backend-x83f.onrender.com/api/user/profile', {
               headers: {
                 'Authorization': `Bearer ${token}`
               }

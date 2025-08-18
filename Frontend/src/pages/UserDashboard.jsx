@@ -35,7 +35,7 @@ function UserDashboard() {
         }
 
         // Fetch user accuracy statistics
-        const accuracyResponse = await fetch(`http://localhost:5000/api/user/accuracy/${userData._id || userData.id}`, {
+        const accuracyResponse = await fetch(`https://code-arena-backend-x83f.onrender.com/api/user/accuracy/${userData._id || userData.id}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -59,7 +59,7 @@ function UserDashboard() {
         });
 
         // Fetch recent questions
-        const questionsResponse = await fetch('http://localhost:5000/questions');
+        const questionsResponse = await fetch('https://code-arena-backend-x83f.onrender.com/questions');
         if (!questionsResponse.ok) {
           throw new Error(`HTTP error! status: ${questionsResponse.status}`);
         }

@@ -25,7 +25,7 @@ const EditContest = () => {
   const fetchQuestions = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/questions', {
+      const response = await axios.get('https://code-arena-backend-x83f.onrender.com/questions', {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -39,7 +39,7 @@ const EditContest = () => {
   const fetchContest = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/contests/${id}`, {
+      const response = await axios.get(`https://code-arena-backend-x83f.onrender.com/contests/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -76,7 +76,7 @@ const EditContest = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`http://localhost:5000/contests/${id}`, formData, {
+      await axios.put(`https://code-arena-backend-x83f.onrender.com/contests/${id}`, formData, {
         headers: {
           Authorization: `Bearer ${token}`
         }

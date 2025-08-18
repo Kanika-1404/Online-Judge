@@ -23,7 +23,7 @@ const EditQuestion = () => {
   const fetchQuestion = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/questions/${id}`, {
+      const response = await axios.get(`https://code-arena-backend-x83f.onrender.com/questions/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -109,7 +109,7 @@ const EditQuestion = () => {
         return;
       }
 
-      const response = await axios.put(`http://localhost:5000/questions/${id}`, {
+      const response = await axios.put(`https://code-arena-backend-x83f.onrender.com/questions/${id}`, {
         ...formData,
         tags: tagsArray
       }, {

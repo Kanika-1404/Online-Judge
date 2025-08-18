@@ -14,7 +14,7 @@ const QuestionsManagement = () => {
   const fetchQuestions = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/questions', {
+      const response = await axios.get('https://code-arena-backend-x83f.onrender.com/questions', {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -31,7 +31,7 @@ const QuestionsManagement = () => {
     if (window.confirm('Are you sure you want to delete this question?')) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`http://localhost:5000/questions/${id}`, {
+        await axios.delete(`https://code-arena-backend-x83f.onrender.com/questions/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }

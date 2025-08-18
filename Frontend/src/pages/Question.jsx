@@ -42,7 +42,7 @@ function Question() {
     setAiReviewLoading(true);
     setAiReview('');
     try {
-      const response = await fetch('http://localhost:5000/generate-review', {
+      const response = await fetch('https://code-arena-backend-x83f.onrender.com/generate-review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: question.title, code }),
@@ -65,7 +65,7 @@ function Question() {
     setVerdict(null);
     setTestResults([]);
     try {
-      const response = await fetch("http://localhost:5000/api/run-code", {
+      const response = await fetch("https://code-arena-backend-x83f.onrender.com/api/run-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, format: language, input: customInput }),
@@ -89,7 +89,7 @@ function Question() {
     try {
       const token = localStorage.getItem('token');
       const userId = localStorage.getItem('userId');
-      const response = await fetch("http://localhost:5000/submit-code", {
+      const response = await fetch("https://code-arena-backend-x83f.onrender.com/submit-code", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -114,7 +114,7 @@ function Question() {
   useEffect(() => {
     async function fetchQuestion() {
       try {
-        const response = await fetch(`http://localhost:5000/questions/${id}`);
+        const response = await fetch(`https://code-arena-backend-x83f.onrender.com/questions/${id}`);
         if (response.ok) {
           const data = await response.json();
           setQuestion(data);
@@ -130,7 +130,7 @@ function Question() {
     async function fetchQuestionAccuracy() {
       setLoadingAccuracy(true);
       try {
-        const response = await fetch(`http://localhost:5000/api/question/accuracy/${id}`);
+        const response = await fetch(`https://code-arena-backend-x83f.onrender.com/api/question/accuracy/${id}`);
         if (response.ok) {
           const data = await response.json();
           setQuestionAccuracy(data);
@@ -188,11 +188,11 @@ function Question() {
                   <p>No public test cases available.</p>
                 )}
               </div>
-              {loadingAccuracy ? (
+              {/*{loadingAccuracy ? (
                 <p>Loading accuracy...</p>
               ) : (
                 questionAccuracy && <AccuracyDisplay accuracyData={questionAccuracy} type="question" />
-              )}
+              )} */}
             </div>
 
             {/* Right side: code editor, run button, output */}
@@ -216,7 +216,7 @@ function Question() {
                   onClick={async () => {
                     try {
                       const token = localStorage.getItem('token');
-                      const response = await fetch(`http://localhost:5000/submissions/${id}`, {
+                      const response = await fetch(`https://code-arena-backend-x83f.onrender.com/submissions/${id}`, {
                         headers: {
                           'Authorization': `Bearer ${token}`,
                         },

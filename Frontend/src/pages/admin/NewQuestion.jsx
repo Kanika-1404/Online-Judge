@@ -53,7 +53,7 @@ const NewQuestion = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/questions', {
+      await axios.post('https://code-arena-backend-x83f.onrender.com/questions', {
         ...formData,
         tags: tagsArray
       }, {

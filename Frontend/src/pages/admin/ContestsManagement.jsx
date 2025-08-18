@@ -14,7 +14,7 @@ const ContestsManagement = () => {
   const fetchContests = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/contests', {
+      const response = await axios.get('https://code-arena-backend-x83f.onrender.com/contests', {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -31,7 +31,7 @@ const ContestsManagement = () => {
     if (window.confirm('Are you sure you want to delete this contest?')) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`http://localhost:5000/contests/${id}`, {
+        await axios.delete(`https://code-arena-backend-x83f.onrender.com/contests/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }

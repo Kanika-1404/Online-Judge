@@ -19,7 +19,7 @@ const AdminSignup = () => {
     }
 
     try {
-      const response = await axios.post('http://localhost:5000/register-admin', {
+      const response = await axios.post('https://code-arena-backend-x83f.onrender.com/register-admin', {
         name,
         email,
         password

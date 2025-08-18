@@ -22,7 +22,7 @@ const NewContest = () => {
   const fetchQuestions = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/questions', {
+      const response = await axios.get('https://code-arena-backend-x83f.onrender.com/questions', {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -50,7 +50,7 @@ const NewContest = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/contests', {
+      await axios.post('https://code-arena-backend-x83f.onrender.com/contests', {
         ...formData,
         contestId: `contest-${Date.now()}`
       }, {
