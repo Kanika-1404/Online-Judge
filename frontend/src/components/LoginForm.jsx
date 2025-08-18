@@ -22,7 +22,7 @@ export default function LoginForm() {
     setError('');
 
     try {
-      const response = await fetch('/api/login', {
+      const response = await fetch('https://code-arena-backend-x83f.onrender.com/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

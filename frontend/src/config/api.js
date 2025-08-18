@@ -1,5 +1,5 @@
 // API Configuration for different environments
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://code-arena-backend-x83f.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 export const API_ENDPOINTS = {
   register: `${API_BASE_URL}/api/register`,

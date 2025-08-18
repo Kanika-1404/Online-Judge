@@ -28,7 +28,7 @@ export default function RegisterForm() {
     }
 
     try {
-      const response = await fetch('/api/register', {
+      const response = await fetch('https://code-arena-backend-x83f.onrender.com/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
