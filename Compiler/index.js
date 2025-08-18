@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 4000;
 
 // Ensure required directories exist
 const ensureDirectories = () => {
@@ -114,25 +114,17 @@ app.get("/debug", (req, res) => {
   });
 });
 
-// Execute code endpoint
+// Execute code endpoint (secured)
 app.post("/execute", async (req, res) => {
-  console.log("=== EXECUTE REQUEST ===dd");
+  console.log("=== EXECUTE REQUEST ===");
   console.log("Headers:", req.headers);
-  console.log("Body:", {
-    format: req.body.format,
-    codeLength: req.body.code?.length,
-    hasInput: !!req.body.input,
-  });
 
   try {
     const { code, format, input } = req.body;
 
     // Validation
     if (!code || !format) {
-      return res.status(400).json({
-        error: "Code and format are required",
-        received: { code: !!code, format: !!format },
-      });
+      return res.status(400).json({ error: "Code and format are required" });
     }
 
     if (!["cpp", "c", "py"].includes(format)) {
@@ -141,44 +133,55 @@ app.post("/execute", async (req, res) => {
       });
     }
 
-    console.log(`Executing ${format} code (${code.length} chars)`);
-    console.log(`Input: ${input ? input.substring(0, 50) + "..." : "No input"}`);
+    // Limit input size to prevent memory abuse
+    const safeInput = input ? input.substring(0, 10000) : ""; // max 10k chars
+
+    // Language-specific timeouts (ms)
+    const TIMEOUTS = { c: 3000, cpp: 3000, py: 5000 };
 
     // Generate file
     const filePath = generateFile(format, code);
-    console.log(`Generated file: ${filePath}`);
 
     let output;
 
-    // Execute based on language
+    // Wrapper function to run code with timeout
+    const runWithTimeout = async (executeFn) => {
+      return Promise.race([
+        executeFn(filePath, safeInput),
+        new Promise((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `${format.toUpperCase()} execution timed out (${TIMEOUTS[format]}ms)`
+                )
+              ),
+            TIMEOUTS[format]
+          )
+        ),
+      ]);
+    };
+
     switch (format) {
       case "cpp":
-        output = await executeCpp(filePath, input || "");
+        output = await runWithTimeout(executeCpp);
         break;
       case "c":
-        output = await executeC(filePath, input || "");
+        output = await runWithTimeout(executeC);
         break;
       case "py":
-        output = await executePy(filePath, input || "");
+        output = await runWithTimeout(executePy);
         break;
     }
-
-    console.log("Execution successful");
-    console.log(`Output (${output.length} chars): ${output.substring(0, 200)}...`);
 
     // Clean up source file
     try {
       fs.unlinkSync(filePath);
-    } catch (cleanupError) {
-      console.warn("Could not delete source file:", cleanupError.message);
-    }
+    } catch {}
 
     res.json({ output });
   } catch (error) {
-    console.error("=== EXECUTION ERROR ===");
-    console.error("Error:", error.message);
-    console.error("Stack:", error.stack);
-
+    console.error("=== EXECUTION ERROR ===", error);
     res.status(500).json({
       error: "Code execution failed",
       details: error.message,

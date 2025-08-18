@@ -5,7 +5,6 @@ const Question = require('./models/Question');
 async function seedQuestions() {
   try {
     await mongoose.connect(process.env.MONGO_URL);
-    console.log("Connected to DB");
 
     const questions = [
       {
@@ -63,7 +62,6 @@ async function seedQuestions() {
     ];
 
     await Question.insertMany(questions);
-    console.log("Questions inserted successfully");
     process.exit();
   } catch (error) {
     console.error("Error seeding questions:", error);

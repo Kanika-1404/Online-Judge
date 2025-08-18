@@ -1,10 +1,8 @@
 const mongoose = require("mongoose");
 
 const DBConnection = async () => {
-  const MONGO_URL = process.env.MONGO_URL || 'mongodb://admin:password123@mongodb:27017/onlinejudge?authSource=admin';
+  const MONGO_URL = process.env.MONGO_URL;
 
-  console.log("DEBUG: Using MONGO_URL =", MONGO_URL);
-  
   try {
     await mongoose.connect(MONGO_URL, {
       ssl: true,

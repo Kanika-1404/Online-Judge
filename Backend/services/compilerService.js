@@ -1,11 +1,16 @@
+// services/compilerService.js
 const executeCode = async (code, format, input) => {
-  const compilerUrl = process.env.COMPILER_URL || "http://localhost:8000";
-  
-  console.log("=== COMPILER SERVICE REQUEST ===");
-  console.log("Compiler URL:", compilerUrl);
-  console.log("Request payload:", { code: code.substring(0, 100) + "...", format, input });
+  const compilerUrl = process.env.COMPILER_URL;
+  console.log(compilerUrl);
+
+  if (!compilerUrl) {
+    throw new Error('COMPILER_URL not configured in environment variables');
+  }
 
   try {
+    console.log(`Making request to: ${compilerUrl}/execute`);
+    console.log(`Language: ${format}`);
+    
     const response = await fetch(`${compilerUrl}/execute`, {
       method: "POST",
       headers: {
@@ -14,57 +19,54 @@ const executeCode = async (code, format, input) => {
       body: JSON.stringify({ code, format, input }),
     });
 
-    console.log("Compiler service response status:", response.status);
-    console.log("Compiler service response ok:", response.ok);
+    const text = await response.text(); // read body once
 
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = await response.json();
-        console.log("Error response data:", errorData);
-      } catch (parseError) {
-        const textError = await response.text();
-        console.log("Error response text:", textError);
-        throw new Error(`Compiler service error: ${response.status} - ${textError}`);
-      }
-      throw new Error(errorData.error || `Compiler service error: ${response.status}`);
+    let data;
+    try {
+      data = JSON.parse(text); // try parsing as JSON
+    } catch (parseError) {
+      console.log('Failed to parse response as JSON:', text);
+      data = { error: text }; // fallback if it's plain text
     }
 
-    const result = await response.json();
-    console.log("Compiler service success:", result);
-    return result;
-    
+    if (!response.ok) {
+      console.log("Error response data:", data);
+      throw new Error(data.error || `Compiler service error: ${response.status} - ${response.statusText}`);
+    }
+
+    return data;
+
   } catch (error) {
     console.error("=== COMPILER SERVICE ERROR ===");
     console.error("Error type:", error.constructor.name);
     console.error("Error message:", error.message);
-    
-    // Check if it's a network error
-    if (error.code === 'ECONNREFUSED' || error.message.includes('ECONNREFUSED')) {
+
+    if (error.code === "ECONNREFUSED" || error.message.includes("ECONNREFUSED")) {
       throw new Error(`Cannot connect to compiler service at ${compilerUrl}. Is the compiler service running?`);
     }
-    
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+
+    if (error.name === "TypeError" && error.message.includes("fetch")) {
       throw new Error(`Network error connecting to compiler service: ${error.message}`);
     }
-    
+
     throw error;
   }
 };
 
+// Add the missing runTestCases function
 const runTestCases = async (code, format, testCases) => {
   const results = [];
   let allPassed = true;
 
-  for (const testCase of testCases) {
+  for (let i = 0; i < testCases.length; i++) {
+    const testCase = testCases[i];
     try {
       const result = await executeCode(code, format, testCase.input);
-      const output = result.output;
-
-      const trimmedOutput = output.trim();
+      
+      const actualOutput = result.output ? result.output.trim() : '';
       const expectedOutput = testCase.output.trim();
-
-      const passed = trimmedOutput === expectedOutput;
+      const passed = actualOutput === expectedOutput;
+      
       if (!passed) {
         allPassed = false;
       }
@@ -72,18 +74,21 @@ const runTestCases = async (code, format, testCases) => {
       results.push({
         input: testCase.input,
         expectedOutput: testCase.output,
-        actualOutput: output,
-        passed,
-        visibility: testCase.visibility,
+        actualOutput: actualOutput,
+        passed: passed,
+        visibility: testCase.visibility || 'Public',
+        error: result.error || null
       });
+
     } catch (error) {
       allPassed = false;
       results.push({
         input: testCase.input,
         expectedOutput: testCase.output,
-        actualOutput: error.toString(),
+        actualOutput: '',
         passed: false,
-        visibility: testCase.visibility,
+        visibility: testCase.visibility || 'Public',
+        error: error.message
       });
     }
   }
@@ -93,5 +98,5 @@ const runTestCases = async (code, format, testCases) => {
 
 module.exports = {
   executeCode,
-  runTestCases,
+  runTestCases  // Export the missing function
 };
