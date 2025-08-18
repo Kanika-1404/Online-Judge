@@ -1,20 +1,27 @@
 const fs = require("fs");
 const path = require("path");
-const {v4: uuid} = require("uuid");
+const { v4: uuid } = require("uuid");
 
-const dirCodes = path.join(__dirname, "codes"); // path to store codes file
+const dirCodes = path.join(__dirname, "codes");
 
-if (!fs.existsSync(dirCodes)){  // if folder not exist make it
-    fs.mkdirSync(dirCodes, {recursive: true});
+// Ensure codes directory exists
+if (!fs.existsSync(dirCodes)) {
+  fs.mkdirSync(dirCodes, { recursive: true });
 }
-const generateFile = (Format, content) => {
-    const fileID = uuid();
-    const filename = `${fileID}.${Format}`;
-    const filePath = path.join(dirCodes, filename);
+
+const generateFile = (format, content) => {
+  const fileID = uuid();
+  const filename = `${fileID}.${format}`;
+  const filePath = path.join(dirCodes, filename);
+  
+  try {
     fs.writeFileSync(filePath, content);
+    console.log(`Generated file: ${filename}`);
     return filePath;
+  } catch (error) {
+    console.error("Error generating file:", error);
+    throw new Error(`Failed to generate file: ${error.message}`);
+  }
 };
 
-generateFile("py", "print(\"Hello World\")"); // generate a cpp
-
-module.exports = {generateFile};
+module.exports = { generateFile };

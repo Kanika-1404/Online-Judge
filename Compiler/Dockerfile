@@ -3,11 +3,11 @@ FROM node:20-slim
 WORKDIR /app
 
 COPY package*.json ./
+
 RUN npm install
 
-COPY . .
-
 RUN apt-get update && apt-get install -y \
+    build-essential \
     g++ \
     gcc \
     python3 \
@@ -16,7 +16,12 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+RUN gcc --version && g++ --version && python3 --version
+
+COPY . .
+
+RUN mkdir -p codes outputs
+
 EXPOSE 8000
 
 CMD ["npm", "start"]
-

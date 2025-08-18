@@ -4,6 +4,8 @@ const path = require("path");
 const os = require("os");
 
 const outputPath = path.join(__dirname, "outputs");
+
+// Ensure outputs directory exists
 if (!fs.existsSync(outputPath)) {
   fs.mkdirSync(outputPath, { recursive: true });
 }
@@ -11,46 +13,71 @@ if (!fs.existsSync(outputPath)) {
 const executeCpp = async (filePath, input = "") => {
   const jobID = path.basename(filePath).split(".")[0];
   let outputFilePath = path.join(outputPath, `${jobID}.out`);
+  
   const isWindows = os.platform() === "win32";
-
   if (isWindows) {
     outputFilePath += ".exe";
   }
 
+  const absFilePath = path.resolve(filePath);
+  const absOutputPath = path.resolve(outputFilePath);
+
+  // Verify source file exists
+  if (!fs.existsSync(absFilePath)) {
+    throw new Error(`C++ file not found: ${absFilePath}`);
+  }
+
+  console.log(`Compiling C++: g++ "${absFilePath}" -o "${absOutputPath}"`);
+  console.log(`Input provided: ${input ? "Yes" : "No"}`);
+
   return new Promise((resolve, reject) => {
-    // Compile
-    const compileCommand = `g++ "${filePath}" -o "${outputFilePath}"`;
-    const compile = spawn(compileCommand, { shell: true });
+    // Compile with better error handling
+    const compileArgs = [absFilePath, "-o", absOutputPath];
+    const compile = spawn("g++", compileArgs, { stdio: ["ignore", "pipe", "pipe"] });
 
     let compileError = "";
+
+    compile.stdout.on("data", (data) => {
+      console.log("Compile stdout:", data.toString());
+    });
 
     compile.stderr.on("data", (data) => {
       compileError += data.toString();
     });
 
     compile.on("error", (err) => {
-      reject(err);
+      console.error("Compilation spawn error:", err);
+      reject(new Error(`g++ command failed: ${err.message}`));
     });
 
     compile.on("close", (code) => {
+      console.log(`Compilation finished with code: ${code}`);
+      if (compileError) console.log(`Compile errors: ${compileError}`);
+
       if (code !== 0) {
-        reject(`Compilation failed: ${compileError || `Exit code ${code}`}`);
+        reject(new Error(`Compilation failed: ${compileError || `Exit code ${code}`}`));
         return;
       }
 
-      // Ensure executable permission (Linux/Mac)
+      // Verify compiled file exists
+      if (!fs.existsSync(absOutputPath)) {
+        reject(new Error(`Compiled executable not found: ${absOutputPath}`));
+        return;
+      }
+
+      // Set executable permission (Linux/Mac)
       if (!isWindows) {
         try {
-          fs.chmodSync(outputFilePath, 0o755);
+          fs.chmodSync(absOutputPath, 0o755);
         } catch (err) {
           console.warn("Could not set executable permissions:", err.message);
         }
       }
 
-      // Run compiled file
-      const run = spawn(outputFilePath, [], {
-        shell: false,
-        stdio: ["pipe", "pipe", "pipe"], // stdin, stdout, stderr
+      // Execute the compiled binary
+      const run = spawn(absOutputPath, [], {
+        stdio: ["pipe", "pipe", "pipe"],
+        cwd: path.dirname(absOutputPath)
       });
 
       let stdout = "";
@@ -65,22 +92,44 @@ const executeCpp = async (filePath, input = "") => {
       });
 
       run.on("error", (err) => {
-        reject(`Execution error: ${err.message}`);
+        console.error("Execution error:", err);
+        reject(new Error(`Execution error: ${err.message}`));
       });
 
+      // Set execution timeout
+      const timer = setTimeout(() => {
+        run.kill("SIGKILL");
+        reject(new Error("C++ execution timed out (5 seconds)"));
+      }, 5000);
+
       run.on("close", (code) => {
+        clearTimeout(timer);
+        
+        console.log(`C++ execution finished with code: ${code}`);
+        console.log(`Stdout: ${stdout}`);
+        if (stderr) console.log(`Stderr: ${stderr}`);
+
+        // Clean up executable file
+        try {
+          fs.unlinkSync(absOutputPath);
+        } catch (err) {
+          console.warn("Could not delete executable:", err.message);
+        }
+
         if (code !== 0) {
-          reject(stderr || `Execution failed with exit code ${code}`);
+          reject(new Error(stderr || `C++ execution failed with exit code ${code}`));
         } else {
           resolve(stdout.trim());
         }
       });
 
-      // Write input if provided
+      // Handle input
       if (input && input.trim()) {
         const formattedInput = input.endsWith("\n") ? input : input + "\n";
         run.stdin.write(formattedInput);
       }
+      
+      // Always end stdin
       run.stdin.end();
     });
   });
