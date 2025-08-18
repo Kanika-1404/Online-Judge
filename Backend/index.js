@@ -9,6 +9,7 @@ dbConnection();
 app.use(
   cors({
     origin: [
+      "https://codes-arena.netlify.app",
       "http://localhost:5173",
     ],
     credentials: true,
