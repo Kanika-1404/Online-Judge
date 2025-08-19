@@ -2,17 +2,45 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import UserNavbar from '../components/UserNavbar';
 import Footer from '../components/Footer';
-import Editor from 'react-simple-code-editor';
+import useDarkMode from "../hooks/useDarkMode";
+// import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs/components/prism-core';
+import Editor from "@monaco-editor/react";
+import { useTheme } from "next-themes";
 import 'prismjs/components/prism-clike';
 import 'prismjs/components/prism-javascript';
 import 'prismjs/themes/prism.css';
 import AccuracyDisplay from '../components/AccuracyDisplay';
 
+const boilerplates = {
+  cpp: `#include <iostream>
+using namespace std;
+
+int main() {
+    // Write your code here
+    return 0;
+}`,
+  c: `#include <stdio.h>
+
+int main() {
+    // Write your code here
+    return 0;
+}`,
+  py: `def main():
+    # Write your code here
+    pass
+
+if __name__ == "__main__":
+    main()`,
+};
+
+
 function Question() {
   const { id } = useParams();
+  const [isDarkMode] = useDarkMode();
   const [question, setQuestion] = useState(null);
-  const [code, setCode] = useState('');
+  // const [code, setCode] = useState('');
+  const [code, setCode] = useState(boilerplates.py);
   const [output, setOutput] = useState('');
   const [language, setLanguage] = useState('py');
   const [customInput, setCustomInput] = useState('');
@@ -31,7 +59,9 @@ function Question() {
   ];
 
   const handleLanguageChange = (e) => {
-    setLanguage(e.target.value);
+    const selectedLang = e.target.value;
+    setLanguage(selectedLang);
+    setCode(boilerplates[selectedLang]); // auto-fill boilerplate
   };
 
   const getAIReview = async () => {
@@ -75,11 +105,11 @@ function Question() {
         setOutput(data.output);
       } else {
         setOutput(`Error: ${data.error}`);
+        await getAIReview();
       }
     } catch (error) {
       setOutput(`Error: ${error.message}`);
-    }
-    await getAIReview();
+    }    
   };
 
   const submitCode = async () => {
@@ -235,7 +265,23 @@ function Question() {
                   Previous Submissions
                 </button>
               </div>
-              <div className="flex-grow w-full max-h-[50vh] border border-gray-300 rounded bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 overflow-y-auto font-mono text-sm" style={{ minHeight: '40vh' }}>
+              <div className="flex-grow w-full max-h-[50vh] border border-gray-300 rounded bg-white dark:bg-gray-800 dark:border-gray-600 overflow-hidden font-mono text-sm" style={{ minHeight: "40vh" }}>
+                <Editor
+                  height="100%"
+                  language={language === "py" ? "python" : language === "cpp" ? "cpp" : "c"}
+                  //theme={window.matchMedia("(prefers-color-scheme: dark)").matches ? "vs-dark" : "light"}
+                  theme={isDarkMode ? "vs-dark" : "light"}
+                  value={code}
+                  onChange={(value) => setCode(value || "")}
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 14,
+                    scrollBeyondLastLine: false,
+                  }}
+                />
+              </div>
+
+              {/* <div className="flex-grow w-full max-h-[50vh] border border-gray-300 rounded bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 overflow-y-auto font-mono text-sm" style={{ minHeight: '40vh' }}>
                 <Editor
                   value={code}
                   onValueChange={handleCodeChange}
@@ -248,7 +294,7 @@ function Question() {
                     outline: 'none',
                   }}
                 />
-              </div>
+              </div> */}
               <div className="mt-4">
                 <label htmlFor="customInput" className="block mb-2 font-semibold">Custom Input</label>
                 <textarea

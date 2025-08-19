@@ -81,7 +81,7 @@ function ContestDetail() {
         return;
       }
 
-      const response = await fetch(`/contests/${id}/register`, {
+      const response = await fetch(`https://code-arena-backend-x83f.onrender.com/contests/${id}/register`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
